@@ -342,7 +342,7 @@ def get_test_loader(
             )
 
     elif dataset_name == "CIFAR10":
-        dataset = torchvision.datasets.CIFAR10(root='datasets/CIFAR10', train=True,
+        dataset = torchvision.datasets.CIFAR10(root='datasets/CIFAR10', train=False,
                                                download=True, transform=transform)
     else:
         # load the dataset
