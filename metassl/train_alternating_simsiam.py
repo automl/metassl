@@ -28,7 +28,6 @@ from jsonargparse import ArgumentParser
 from torch.nn import functional as F
 from torch.utils.tensorboard import SummaryWriter
 
-from utils.torch_utils import get_newest_model, check_and_save_checkpoint, deactivate_bn
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -39,6 +38,7 @@ try:
     from metassl.utils.meters import AverageMeter, ProgressMeter
     from metassl.utils.simsiam_alternating import SimSiam
     import metassl.models.resnet_cifar as our_cifar_resnets
+    from metassl.utils.torch_utils import get_newest_model, check_and_save_checkpoint, deactivate_bn
 except ImportError:
     # For execution in command line
     from .utils.data import get_train_valid_loader, get_test_loader
@@ -46,6 +46,7 @@ except ImportError:
     from .utils.meters import AverageMeter, ProgressMeter
     from .utils.simsiam_alternating import SimSiam
     from .models import resnet_cifar as our_cifar_resnets
+    from .utils.torch_utils import get_newest_model, check_and_save_checkpoint, deactivate_bn
 
 model_names = sorted(
     name for name in models.__dict__
@@ -54,7 +55,23 @@ model_names = sorted(
     )
 
 
-def main(config, expt_dir):
+def main(config, expt_sub_dir, bohb_infos=None):
+    # BOHB only --------------------------------------------------------------------------------------------------------
+    if bohb_infos is not None:
+        # Integrate budget based on budget_mode
+        if config.bohb.budget_mode == "epochs":
+            config.train.epochs = int(bohb_infos['bohb_budget'])
+            config.finetuning.epochs = int(bohb_infos['bohb_budget'])
+        else:
+            raise ValueError(f"Budget mode '{config.bohb.budget_mode}' not implemented yet!")
+
+        # Create subfoler for each config_id (directory where tensorboard and checkpoints are being saved)
+        expt_sub_dir_id = get_expt_sub_dir_with_bohb_config_id(expt_sub_dir, bohb_infos['bohb_config_id'])
+        expt_sub_dir = expt_sub_dir_id
+
+        print(f"\n\n\n{bohb_infos=}\n\n\n")
+    # ------------------------------------------------------------------------------------------------------------------
+
     if config.expt.seed is not None:
         random.seed(config.expt.seed)
         torch.manual_seed(config.expt.seed)
@@ -85,15 +102,22 @@ def main(config, expt_dir):
         config.expt.world_size = ngpus_per_node * config.expt.world_size
         # Use torch.multiprocessing.spawn to launch distributed processes: the
         # main_worker process function
-        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, config, expt_dir))
+        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, config, expt_sub_dir, bohb_infos))
     else:
         # Simply call main_worker function
-        main_worker(config.expt.gpu, ngpus_per_node, config, expt_dir)
+        main_worker(config.expt.gpu, ngpus_per_node, config, expt_sub_dir, bohb_infos)
 
+    # For BOHB runs: Read validation metric from the .txt (as for mp.spawn returning values is not trivial)
+    # TODO: @Diane - Think for a more elegant solution - no priority
+    if bohb_infos is not None:
+        with open(expt_sub_dir + "/current_val_metric.txt", 'r') as f:
+            val_metric = f.read()
+        print(f"{val_metric=}")
+        return float(val_metric)
 
-def main_worker(gpu, ngpus_per_node, config, expt_dir):
+def main_worker(gpu, ngpus_per_node, config, expt_sub_dir, bohb_infos):
     config.expt.gpu = gpu
-    
+
     # suppress printing if not master
     if config.expt.multiprocessing_distributed and config.expt.gpu != 0:
         def print_pass(*args):
@@ -206,7 +230,7 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir):
         )
     
     # in case a dumped model exist and ssl_model_checkpoint is not set, load that dumped model
-    newest_model = get_newest_model(expt_dir)
+    newest_model = get_newest_model(expt_sub_dir)
     if newest_model and config.expt.ssl_model_checkpoint_path is None:
         config.expt.ssl_model_checkpoint_path = newest_model
     
@@ -234,13 +258,13 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir):
     # Data loading code
     traindir = os.path.join(config.data.dataset, 'train')
     
-    pt_train_loader, pt_train_sampler, ft_train_loader, ft_train_sampler, ft_test_loader = get_loaders(traindir, config)
+    pt_train_loader, pt_train_sampler, ft_train_loader, ft_train_sampler, ft_test_loader = get_loaders(traindir, config, bohb_infos)
     
     cudnn.benchmark = True
     writer = None
     
     if config.expt.rank == 0:
-        writer = SummaryWriter(log_dir=os.path.join(expt_dir, "tensorboard"))
+        writer = SummaryWriter(log_dir=os.path.join(expt_sub_dir, "tensorboard"))
     
     for epoch in range(config.train.start_epoch, config.train.epochs):
         if config.expt.distributed:
@@ -256,18 +280,41 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir):
         print(f"Warmup status: {warmup}")
         
         total_iter = train_one_epoch(pt_train_loader, ft_train_loader, model, pt_criterion, ft_criterion, optimizer_pt, optimizer_ft, epoch, total_iter, config, writer, advanced_stats=config.expt.advanced_stats, warmup=warmup)
+
+        # BOHB only ----------------------------------------------------------------------------------------------------
+        # TODO: @Diane - Refactor - no priority
+        if bohb_infos is not None:
+            if config.bohb.budget_mode == "epochs":
+                if epoch % config.expt.eval_freq == 0 or epoch % int(bohb_infos['bohb_budget'] - 1) == 0:
+                    # TODO: @Diane - validate on the validation set!!!!! - priority!
+                    top1_avg = validate(ft_test_loader, model, ft_criterion, config)
+                    if config.expt.rank == 0:
+                        writer.add_scalar('Test/Accuracy@1', top1_avg, total_iter)
+
+            else:
+                if epoch % config.expt.eval_freq == 0:
+                    # TODO: @Diane - validate on the validation set!!!!! - priority!
+                    top1_avg = validate(ft_test_loader, model, ft_criterion, config)
+                    if config.expt.rank == 0:
+                        writer.add_scalar('Test/Accuracy@1', top1_avg, total_iter)
+        # --------------------------------------------------------------------------------------------------------------
+        else:
+            # evaluate on validation set
+            if epoch % config.expt.eval_freq == 0:
+                top1_avg = validate(ft_test_loader, model, ft_criterion, config)
+                if config.expt.rank == 0:
+                    writer.add_scalar('Test/Accuracy@1', top1_avg, total_iter)
         
-        # evaluate on validation set
-        if epoch % config.expt.eval_freq == 0:
-            top1_avg = validate(ft_test_loader, model, ft_criterion, config)
-            if config.expt.rank == 0:
-                writer.add_scalar('Test/Accuracy@1', top1_avg, total_iter)
-        
-        check_and_save_checkpoint(config, ngpus_per_node, total_iter, epoch, model, optimizer_pt, optimizer_ft, expt_dir)
+        check_and_save_checkpoint(config, ngpus_per_node, total_iter, epoch, model, optimizer_pt, optimizer_ft, expt_sub_dir)
     
     if config.expt.rank == 0:
         writer.close()
 
+    # For BOHB runs: Save validation metric in a .txt (as for mp.spawn returning values is not trivial)
+    # TODO: @Diane - Think for a more elegant solution - no priority
+    if bohb_infos is not None:
+        with open(expt_sub_dir + "/current_val_metric.txt", 'w+') as f:
+            f.write(f"{top1_avg.item()}\n")
 
 def train_one_epoch(train_loader_pt, train_loader_ft, model, criterion_pt, criterion_ft, optimizer_pt, optimizer_ft, epoch, total_iter, config, writer, advanced_stats=False, warmup=False):
     batch_time = AverageMeter('Time', ':6.3f')
@@ -436,12 +483,12 @@ def adjust_learning_rate(optimizer, init_lr, epoch, total_epochs):
             return cur_lr
 
 
-def get_loaders(traindir, config):
+def get_loaders(traindir, config, bohb_infos):
     pt_train_loader, _, pt_train_sampler, _ = get_train_valid_loader(
         data_dir=traindir,
         batch_size=config.train.batch_size,
         random_seed=config.expt.seed,
-        valid_size=0.0,
+        valid_size=0.0 if bohb_infos is None else 0.1,
         dataset_name=config.data.dataset,
         shuffle=True,
         num_workers=config.expt.workers,
@@ -450,14 +497,15 @@ def get_loaders(traindir, config):
         distributed=config.expt.distributed,
         drop_last=True,
         get_fine_tuning_loaders=False,
+        bohb_infos=bohb_infos,
         )
     
     ft_train_loader, _, ft_train_sampler, _ = get_train_valid_loader(
         data_dir=traindir,
         batch_size=config.finetuning.batch_size,
         random_seed=config.expt.seed,
-        valid_size=0.0,
-        dataset_name="ImageNet",
+        valid_size=0.0 if bohb_infos is None else 0.1,
+        dataset_name=config.data.dataset,
         shuffle=True,
         num_workers=config.expt.workers,
         pin_memory=True,
@@ -465,12 +513,13 @@ def get_loaders(traindir, config):
         distributed=config.expt.distributed,
         drop_last=True,
         get_fine_tuning_loaders=True,
+        bohb_infos=bohb_infos,
         )
     
     ft_test_loader = get_test_loader(
         data_dir=traindir,
         batch_size=256,
-        dataset_name="ImageNet",
+        dataset_name=config.data.dataset,
         shuffle=False,
         num_workers=config.expt.workers,
         pin_memory=True,
@@ -577,6 +626,42 @@ def _parse_args(config_parser, parser):
     
     return args
 
+def organize_experiment_saving(args, is_bohb_run):
+    # Set expt_dir based on experiment mode
+    if args.expt.expt_mode.startswith("ImageNet"):
+        expt_dir = f"/home/{user}/workspace/experiments/metassl"
+    elif args.expt.expt_mode.startswith("CIFAR10"):
+        expt_dir = "experiments"
+    else:
+        raise ValueError(f"Experiment mode {args.expt.expt_mode} is undefined!")
+
+    # Set expt_sub_dir based on whether it is a BOHB run or not
+    if is_bohb_run:
+        # for start_bohb_master (directory where config.json and results.json are being saved)
+        expt_sub_dir = os.path.join(expt_dir, "BOHB", args.data.dataset, args.expt.expt_name)
+
+    else:
+        expt_sub_dir = os.path.join(expt_dir, args.expt.expt_name)
+
+    # TODO: @Fabio/Sam - Do we need this?
+    # expt_dir = pathlib.Path(expt_dir)
+
+    # Create directory (if not yet existing) and save config.yaml
+    if not os.path.exists(expt_sub_dir):
+        os.makedirs(expt_sub_dir)
+
+    with open(os.path.join(expt_sub_dir, "config.yaml"), "w") as f:
+        yaml.dump(args, f)
+        print(f"copied config to {f.name}")
+
+    return expt_sub_dir
+
+
+def get_expt_sub_dir_with_bohb_config_id(expt_sub_dir, bohb_config_id):
+    config_id_path = "-".join(str(sub_id) for sub_id in bohb_config_id)
+    expt_sub_dir_id = os.path.join(expt_sub_dir, config_id_path)
+    return expt_sub_dir_id
+
 
 if __name__ == '__main__':
     user = os.environ.get('USER')
@@ -587,7 +672,7 @@ if __name__ == '__main__':
     
     parser.add_argument('--expt', default="expt", type=str, metavar='N')
     parser.add_argument('--expt.expt_name', default='pre-training-fix-lr-100-256', type=str, help='experiment name')
-    parser.add_argument('--expt.expt_mode', default='ImageNet', choices=["ImageNet", "CIFAR10"], help='Define which dataset to use to select the correct yaml file.')
+    parser.add_argument('--expt.expt_mode', default='ImageNet', choices=["ImageNet", "CIFAR10", "ImageNet_BOHB", "CIFAR10_BOHB"], help='Define which dataset to use to select the correct yaml file.')
     parser.add_argument('--expt.save_model', action='store_false', help='save the model to disc or not (default: True)')
     parser.add_argument('--expt.save_model_frequency', default=1, type=int, metavar='N', help='save model frequency in # of epochs')
     parser.add_argument('--expt.ssl_model_checkpoint_path', type=str, help='ppath to the pre-trained model, resumes training if model with same config exists')
@@ -615,7 +700,7 @@ if __name__ == '__main__':
     parser.add_argument('--train.weight_decay', default=0.0001, type=float, metavar='N')
     parser.add_argument('--train.momentum', default=0.9, type=float, metavar='N', help='SGD momentum')
     parser.add_argument('--train.lr', default=0.05, type=float, metavar='N', help='pre-training learning rate')
-    
+
     parser.add_argument('--finetuning', default="finetuning", type=str, metavar='N')
     parser.add_argument('--finetuning.batch_size', default=256, type=int, metavar='N', help='in distributed setting this is the total batch size, i.e. batch size = individual bs * number of GPUs')
     parser.add_argument('--finetuning.epochs', default=100, type=int, metavar='N', help='number of pre-training epochs')
@@ -640,27 +725,48 @@ if __name__ == '__main__':
     parser.add_argument('--simsiam.dim', type=int, default=2048, help='the feature dimension')
     parser.add_argument('--simsiam.pred_dim', type=int, default=512, help='the hidden dimension of the predictor')
     parser.add_argument('--simsiam.fix_pred_lr', action="store_false", help='fix learning rate for the predictor (default: True')
+
+    parser.add_argument("--bohb.run_id", default="default_BOHB")
+    parser.add_argument("--bohb.seed", type=int, default=123, help="random seed")
+    parser.add_argument("--bohb.n_iterations", type=int, default=10, help="How many BOHB iterations")
+    parser.add_argument("--bohb.min_budget", type=int, default=2)
+    parser.add_argument("--bohb.max_budget", type=int, default=4)
+    parser.add_argument("--bohb.budget_mode", type=str, default="epochs", choices=["epochs", "data"], help="Choose your desired fidelity")
+    parser.add_argument("--bohb.eta", type=int, default=2)
+    parser.add_argument("--bohb.configspace_mode", type=str, default='cifar10_probability_augment', choices=["imagenet_probability_augment", "cifar10_probability_augment"], help='Define which configspace to use.')
+    parser.add_argument("--bohb.nic_name", default="lo", help="The network interface to use")
+    parser.add_argument("--bohb.worker", action="store_true", help="Make this execution a worker server")
+    parser.add_argument("--bohb.warmstarting", type=bool, default=False)
+    parser.add_argument("--bohb.warmstarting_dir", type=str, default=None)
     
     args = _parse_args(config_parser, parser)
-    
-    # Saving checkpoint and config pased on experiment mode
-    if args.expt.expt_mode == "ImageNet":
-        expt_dir = f"/home/{user}/workspace/experiments/metassl"
-    elif args.expt.expt_mode == "CIFAR10":
-        expt_dir = "experiments"
-    else:
-        raise ValueError(f"Experiment mode {args.expt.expt_mode} is undefined!")
-    expt_sub_dir = os.path.join(expt_dir, args.expt.expt_name)
-    
-    expt_dir = pathlib.Path(expt_dir)
-    
-    if not os.path.exists(expt_sub_dir):
-        os.makedirs(expt_sub_dir)
-    
-    with open(os.path.join(expt_sub_dir, "config.yaml"), "w") as f:
-        yaml.dump(args, f)
-        print(f"copied config to {f.name}")
-    
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # CIFAR10 settings TODO: @Diane - Implement that nicer (e.g. using just, maybe hydra) - no priority
+    # ------------------------------------------------------------------------------------------------------------------
+    if args.expt.expt_mode.startswith("CIFAR10"):
+        args.config = "metassl/default_metassl_config_cifar10.yaml"
+        args.train.batch_size = 512
+        args.train.epochs = 800
+        args.train.weight_decay = 0.0005
+        args.train.lr = 0.03
+        args.finetuning.batch_size = 512
+        args.finetuning.epochs = 800
+        args.data.dataset = "CIFAR10"
+
     config = AttrDict(jsonargparse.namespace_to_dict(args))
-    
-    main(config=config, expt_dir=expt_sub_dir)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # run BOHB / main + organize expt_sub_dir
+    # ------------------------------------------------------------------------------------------------------------------
+    print("\n\n\n\nConfig:\n", config, "\n\n\n\n")
+
+    is_bohb_run = True if args.expt.expt_mode.endswith("BOHB") else False
+    if is_bohb_run:
+        from metassl.hyperparameter_optimization.master import start_bohb_master
+        expt_sub_dir = organize_experiment_saving(args=args, is_bohb_run=is_bohb_run)
+        start_bohb_master(args=args, yaml_config=config, expt_sub_dir=expt_sub_dir)
+
+    else:
+        expt_sub_dir = organize_experiment_saving(args=args, is_bohb_run=is_bohb_run)
+        main(config=config, expt_sub_dir=expt_sub_dir)

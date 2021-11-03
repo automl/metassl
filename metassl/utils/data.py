@@ -27,6 +27,7 @@ def get_train_valid_loader(
     distributed=False,
     drop_last=True,
     get_fine_tuning_loaders=False,
+    bohb_infos=None,
     ):
     """
     Utility function for loading and returning train and valid
@@ -62,6 +63,13 @@ def get_train_valid_loader(
     
     dataset = eval("datasets." + dataset_name)
     print(f"using dataset: {dataset}")
+
+    # Specify data augmentation hyperparameters for the pretraining part
+    p_colorjitter = 0.8 if bohb_infos is None else bohb_infos['bohb_config']['p_colorjitter']
+    p_grayscale = 0.2 if bohb_infos is None else bohb_infos['bohb_config']['p_grayscale']
+    p_gaussianblur = 0
+    if dataset_name == 'ImageNet':
+        p_gaussianblur = 0.5 if bohb_infos is None else bohb_infos['bohb_config']['p_gaussianblur']
     
     if dataset_name == "CIFAR10":
         # No blur augmentation for CIFAR10!
@@ -72,9 +80,9 @@ def get_train_valid_loader(
                     transforms.RandomApply(
                         [
                             transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1)
-                        ], p=0.8
+                        ], p=p_colorjitter
                     ),
-                    transforms.RandomGrayscale(p=0.2),
+                    transforms.RandomGrayscale(p=p_grayscale),
                     transforms.RandomHorizontalFlip(),
                     transforms.ToTensor(),
                     transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2023, 0.1994, 0.2010])
@@ -136,10 +144,10 @@ def get_train_valid_loader(
                         transforms.RandomApply(
                             [
                                 transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)  # not strengthened
-                                ], p=0.8
+                                ], p=p_colorjitter
                             ),
-                        transforms.RandomGrayscale(p=0.2),
-                        transforms.RandomApply([GaussianBlur([.1, 2.])], p=0.5),
+                        transforms.RandomGrayscale(p=p_grayscale),
+                        transforms.RandomApply([GaussianBlur([.1, 2.])], p=p_gaussianblur),
                         transforms.RandomHorizontalFlip(),
                         transforms.ToTensor(),
                         normalize
