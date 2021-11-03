@@ -2,7 +2,6 @@ from hpbandster.core.worker import Worker
 
 from metassl.train_alternating_simsiam import main
 
-
 class HPOWorker(Worker):
     def __init__(self, args, yaml_config, expt_sub_dir, **kwargs):
         self.args = args
@@ -11,8 +10,9 @@ class HPOWorker(Worker):
         super().__init__(**kwargs)
 
     def compute(self, config_id, config, budget, working_directory, *args, **kwargs):
-        val_metric, test_metric = main(config=self.yaml_config, expt_dir=self.expt_sub_dir, bohb_config_id=config_id, bohb_config=config, bohb_budget=budget)
+        bohb_infos = {'bohb_config_id': config_id, 'bohb_config': config, 'bohb_budget': budget}
+        val_metric = main(config=self.yaml_config, expt_sub_dir=self.expt_sub_dir, bohb_infos=bohb_infos)
         return {
             "loss": -1 * val_metric,
-            "info": {"test/metric": test_metric},
+            "info": {"test/metric": 0},
         }  # remember: HpBandSter always minimizes!
