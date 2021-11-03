@@ -3,8 +3,6 @@ import os
 import random
 import time
 
-from os.path import dirname
-from os.path import join as path_join
 from pathlib import Path
 
 import hpbandster.core.nameserver as hpns
@@ -13,8 +11,8 @@ import numpy as np
 
 from hpbandster.optimizers import BOHB as BOHB
 
-from metassl.hyperparameter_optimization.configspaces import get_test_configspace
-from metassl.hyperparameter_optimization.configspaces import get_data_augmentation_configspace
+from metassl.hyperparameter_optimization.configspaces import get_imagenet_probability_augment_configspace
+from metassl.hyperparameter_optimization.configspaces import get_cifar10_probability_augment_configspace
 from metassl.hyperparameter_optimization.worker import HPOWorker
 
 
@@ -40,19 +38,19 @@ def run_worker(args, yaml_config, expt_sub_dir):
     host = hpns.nic_name_to_host(args.nic_name)
     print(f"host:{host=}")
     w = HPOWorker(args=args, yaml_config=yaml_config, expt_sub_dir=expt_sub_dir, run_id=args.run_id, host=host)
-    w.load_nameserver_credentials(working_directory=args.bohb.log_path)
+    w.load_nameserver_credentials(working_directory=expt_sub_dir)
     w.run(background=False)
 
 
 def run_master(args, yaml_config, expt_sub_dir):
     # Test experiments (whose expt_name are 'test') will always get overwritten
-    if args.expt.expt_name == "test" and os.path.exists(args.bohb.log_path):
-        rmdir(args.bohb.log_path)
+    if args.expt.expt_name == "test" and os.path.exists(expt_sub_dir):
+        rmdir(expt_sub_dir)
 
     # NameServer
     ns = hpns.NameServer(
         run_id=args.bohb.run_id,
-        working_directory=args.bohb.log_path,
+        working_directory=expt_sub_dir,
         nic_name=args.bohb.nic_name,
         port=40600,
     )
@@ -72,10 +70,10 @@ def run_master(args, yaml_config, expt_sub_dir):
     w.run(background=True)
 
     # Select a configspace based on configspace_mode
-    if args.bohb.configspace_mode == "test":
-        configspace = get_test_configspace()
-    elif args.bohb.configspace_mode == "data_augmentation":
-        configspace = get_data_augmentation_configspace()
+    if args.bohb.configspace_mode == "imagenet_probability_augment":
+        configspace = get_imagenet_probability_augment_configspace()
+    elif args.bohb.configspace_mode == "cifar10_probability_augment":
+        configspace = get_cifar10_probability_augment_configspace()
     else:
         raise ValueError(f"Configspace {args.bohb.configspace_mode} is not implemented yet!")
 
@@ -86,7 +84,7 @@ def run_master(args, yaml_config, expt_sub_dir):
         previous_run = None
 
     # Create an optimizer
-    result_logger = hpres.json_result_logger(directory=args.bohb.log_path, overwrite=False)
+    result_logger = hpres.json_result_logger(directory=expt_sub_dir, overwrite=False)
     optimizer = BOHB(
         configspace=configspace,
         run_id=args.bohb.run_id,
@@ -108,27 +106,6 @@ def run_master(args, yaml_config, expt_sub_dir):
 
 
 def start_bohb_master(args, yaml_config, expt_sub_dir):
-    # TODO: Refactor saving directory!
-    # Save test experiments (whose expt_name are 'test') in a separate directory called 'tests'
-    if args.expt.expt_name == "test":
-        args.bohb.log_path = path_join(
-            dirname(__file__),
-            "..",
-            "..",
-            "experiments",
-            "tests",
-            args.data.dataset,
-        )
-    else:
-        args.bohb.log_path = path_join(
-            dirname(__file__),
-            "..",
-            "..",
-            "experiments",
-            args.data.dataset,
-            args.expt.expt_name,
-        )
-
     set_seeds(args.bohb.seed)
     pil_logger = logging.getLogger("PIL")
     pil_logger.setLevel(logging.INFO)
