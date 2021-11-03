@@ -147,7 +147,8 @@ def main_worker(gpu, ngpus_per_node, config, expt_sub_dir, bohb_infos):
         model = SimSiam(our_cifar_resnets.resnet18, config.simsiam.dim, config.simsiam.pred_dim)
     else:
         model = SimSiam(models.__dict__[config.model.model_type], config.simsiam.dim, config.simsiam.pred_dim)
-    
+
+
     if config.model.turn_off_bn:
         print("Turning off BatchNorm in entire model.")
         deactivate_bn(model)
