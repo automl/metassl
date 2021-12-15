@@ -69,6 +69,16 @@ def main(config, expt_sub_dir, bohb_infos=None):
         expt_sub_dir_id = get_expt_sub_dir_with_bohb_config_id(expt_sub_dir, bohb_infos['bohb_config_id'])
         expt_sub_dir = expt_sub_dir_id
 
+        # Define master port (for preventing 'Address already in use error' when more than 1 submitted worker on 1 node)
+        str_config_id = "".join(str(sub_id) for sub_id in bohb_infos['bohb_config_id'])
+        master_port = str(int(bohb_infos['bohb_budget'])) + str_config_id
+        print(f"{master_port=}")
+        if len(master_port) < 5:
+            master_port = master_port + str(0)
+        print(f"{master_port=}")
+        config.expt.dist_url = "tcp://localhost:" + master_port
+        print(f"{config.expt.dist_url=}")
+
         print(f"\n\n\n{bohb_infos=}\n\n\n")
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -735,7 +745,8 @@ if __name__ == '__main__':
     parser.add_argument("--bohb.budget_mode", type=str, default="epochs", choices=["epochs", "data"], help="Choose your desired fidelity")
     parser.add_argument("--bohb.eta", type=int, default=2)
     parser.add_argument("--bohb.configspace_mode", type=str, default='cifar10_probability_augment', choices=["imagenet_probability_augment", "cifar10_probability_augment"], help='Define which configspace to use.')
-    parser.add_argument("--bohb.nic_name", default="lo", help="The network interface to use")
+    parser.add_argument("--bohb.nic_name", default="eth0", help="The network interface to use")
+    parser.add_argument("--bohb.port", type=int, default=0)
     parser.add_argument("--bohb.worker", action="store_true", help="Make this execution a worker server")
     parser.add_argument("--bohb.warmstarting", type=bool, default=False)
     parser.add_argument("--bohb.warmstarting_dir", type=str, default=None)
