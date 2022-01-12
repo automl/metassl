@@ -127,8 +127,13 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir):
     # create model
     print(f"=> creating model '{config.model.model_type}'")
     if config.data.dataset == 'CIFAR10':
-        # Use model from our model folder instead from torchvision!
-        model = SimSiam(our_cifar_resnets.resnet18, config.simsiam.dim, config.simsiam.pred_dim)
+        if config.use_our_resnet:
+            # Use model from our model folder instead from torchvision!
+            print("Our resnet18")
+            model = SimSiam(our_cifar_resnets.resnet18, config.simsiam.dim, config.simsiam.pred_dim)
+        else:
+            print("torchvision resnet18")
+            model = SimSiam(models.__dict__[config.model.model_type], config.simsiam.dim, config.simsiam.pred_dim)
     else:
         model = SimSiam(models.__dict__[config.model.model_type], config.simsiam.dim, config.simsiam.pred_dim)
 
@@ -232,9 +237,16 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir):
     best_acc = 0.0
 
     for epoch in range(config.train.start_epoch, config.train.epochs):
+        warmup = config.expt.warmup_epochs > epoch
+
         if config.expt.distributed:
             train_sampler.set_epoch(epoch)
-        cur_lr = adjust_learning_rate(optimizer, init_lr, epoch, config.train.epochs, config)
+        if warmup:
+            from metassl.utils.torch_utils import adjust_learning_rate as adjust_learning_rate_warmup
+            cur_lr = adjust_learning_rate_warmup(optimizer, init_lr, epoch, total_epochs=config.expt.warmup_epochs, warmup=True, multiplier=config.expt.warmup_multiplier)
+            print(f"warming up phase (PT)")
+        else:
+            cur_lr = adjust_learning_rate(optimizer, init_lr, epoch, config.train.epochs, config)
         print(f"Current LR: {cur_lr}")
 
         # train for one epoch
@@ -350,6 +362,9 @@ if __name__ == '__main__':
     parser.add_argument('--scheduler_epochs', default=100, type=int, metavar='N', help='denotes when scheduler should '
                                                                                        'step')
     parser.add_argument('--run_knn_val', action='store_true')  # if needed run knn validation
+    parser.add_argument('--use_our_resnet', action='store_true', help='Set this flag to use our resnet18. Default: Use torchvision resnet18.')
+    parser.add_argument('--warmup_epochs', default=3, type=int, metavar='N', help='denotes the number of epochs that we only pre-train without finetuning afterwards; warmup is turned off when set to 0; we use a linear incremental schedule during warmup')
+    parser.add_argument('--warmup_multiplier', default=2., type=float, metavar='N', help='A factor that is multiplied with the pretraining lr used in the linear incremental learning rate scheduler during warmup. The final lr is multiplier * pre-training lr')
 
     args = parser.parse_args()
 
@@ -405,6 +420,9 @@ if __name__ == '__main__':
     config['expt']['seed'] = args.seed
     config['train']['scheduler_epochs'] = args.scheduler_epochs
     config['run_knn_val'] = args.run_knn_val
+    config['use_our_resnet'] = args.use_our_resnet
+    config['expt']['warmup_epochs'] = args.warmup_epochs
+    config['expt']['warmup_multiplier'] = args.warmup_multiplier
 
     config = AttrDict(config)
 
