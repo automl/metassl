@@ -10,7 +10,7 @@ echo "Started at $(date)";
 echo "Running job $SLURM_JOB_NAME using $SLURM_JOB_CPUS_PER_NODE cpus per node with given JID $SLURM_JOB_ID on queue $SLURM_JOB_PARTITION";
 
 # Job to perform
-python -m metassl.train_alternating_simsiam --expt.expt_name $EXPERIMENT_NAME --config "metassl/default_metassl_config_cifar10.yaml" --expt.is_non_grad_based --use_fixed_args --finetuning.valid_size 0.0 --train.epochs 450 --finetuning.epochs 450 --expt.warmup_epochs 0 --data.dataset_percentage_usage 25 --data.seed 5 --model.seed 5 --expt.seed 5
+python -m metassl.train_alternating_simsiam --expt.expt_name $EXPERIMENT_NAME --config "metassl/default_metassl_config_cifar10.yaml" --expt.is_non_grad_based --use_fixed_args --finetuning.valid_size 0.0 --train.epochs 450 --finetuning.epochs 450 --expt.warmup_epochs 0 --data.dataset_percentage_usage 100 --data.seed 3 --model.seed 3 --expt.seed 3 --expt.use_fix_aug_params
 
 # Print some Information about the end-time to STDOUT
 echo "DONE";
