@@ -62,7 +62,14 @@ model_names = sorted(
 
 def main(config, expt_dir):
     # args = parser.parse_args()
-
+    
+    # Define master port (for preventing 'Address already in use error' when submitting more than 1 jobs on 1 node)
+    # Code from: https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number
+    master_port = find_free_port()
+    config.expt.dist_url = "tcp://localhost:" + str(master_port)
+    # if this should still fail: do it via filesystem initialization
+    # https://pytorch.org/docs/stable/distributed.html#shared-file-system-initialization
+    
     if config.expt.seed is not None:
         random.seed(config.expt.seed)
         torch.manual_seed(config.expt.seed)
@@ -343,6 +350,13 @@ def adjust_learning_rate(optimizer, init_lr, epoch, total_epochs, config):
                 param_group['lr'] = cur_lr
                 return cur_lr
 
+def find_free_port():
+    import socket
+    from contextlib import closing
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind(('', 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return s.getsockname()[1]
 
 if __name__ == '__main__':
     user = os.environ.get('USER')
@@ -377,7 +391,10 @@ if __name__ == '__main__':
     if args.expt_mode == "ImageNet":
         expt_dir = f"/home/{user}/workspace/experiments/metassl"
     elif args.expt_mode == "CIFAR10":
-        expt_dir = "experiments"
+        if user == "wagnerd":
+            expt_dir = "/work/dlclarge2/wagnerd-metassl_experiments/CIFAR10"
+        else:
+            expt_dir = "experiments"
     else:
         raise ValueError(f"Experiment mode {args.expt_mode} is undefined!")
     expt_sub_dir = os.path.join(expt_dir, expt_name)
