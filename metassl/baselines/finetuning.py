@@ -56,7 +56,10 @@ def main(args, trial_dir=None, bohb_infos=None):
     if not path.exists(args.exp_dir):
         makedirs(args.exp_dir)
 
-    trial_dir = path.join(args.exp_dir, f"{args.trial}_LinClr")
+    if bohb_infos is not None:
+        trial_dir = path.join(args.exp_dir, f"{args.trial}_LinClr")
+    else:
+        trial_dir = path.join(args.exp_dir, args.trial, f"{args.trial}_LinClr")
     logger = SummaryWriter(trial_dir)
     print(f"Tensorboard Logs kept at : {logger.log_dir}")
     print(vars(args))
