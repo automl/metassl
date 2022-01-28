@@ -206,9 +206,11 @@ def main(args, trial_dir=None, bohb_infos=None):
         adjust_learning_rate(optimizer, epoch, args)
         print("Training...")
 
-        # train for one epoch
-        train_loss, current_weight_decay = train(train_loader, model, criterion, optimizer, epoch, args, bohb_infos)
+        # train and log for one epoch
+        train_loss, current_weight_decay, image_1, image_2 = train(train_loader, model, criterion, optimizer, epoch, args, bohb_infos)
         logger.add_scalar('Loss/train', train_loss, epoch)
+        logger.add_images('Train/Image1', image_1, epoch)
+        logger.add_images('Train/Image2', image_2, epoch)
 
         if epoch % args.eval_freq == 0:
             print("Validating...")
@@ -294,7 +296,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args, bohb_infos):
         # To prevent the following error:
         # RuntimeError: Input type (torch.cuda.DoubleTensor) and weight type (torch.cuda.FloatTensor) should be the same
             images[0] = images[0].float()
-            images[1] = images[0].float()
+            images[1] = images[1].float()
 
         if args.gpu is not None:
             images[0] = images[0].cuda(args.gpu, non_blocking=True)
@@ -317,7 +319,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args, bohb_infos):
         if i % args.print_freq == 0:
             progress.display(i)
 
-    return losses.avg, current_weight_decay
+    return losses.avg, current_weight_decay, images[0], images[1]
 
 
 def adjust_learning_rate(optimizer, epoch, args):
