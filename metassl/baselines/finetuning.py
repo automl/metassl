@@ -52,7 +52,6 @@ def main(args, trial_dir=None, bohb_infos=None):
         args.pretrained = trial_dir + "/" + args.trial + "_last.pth"
     else:
         args.pretrained = args.pretrained + "_last.pth"
-
     if not path.exists(args.exp_dir):
         makedirs(args.exp_dir)
 
@@ -64,7 +63,11 @@ def main(args, trial_dir=None, bohb_infos=None):
     if args.seed is not None:
         random.seed(args.seed)
         torch.manual_seed(args.seed)
+        np.random.seed(args.seed)
         # cudnn.deterministic = True
+        # torch.backends.cudnn.benchmark = True
+        # torch.use_deterministic_algorithms(True)
+        # + ADD DATALOADER: https://pytorch.org/docs/stable/notes/randomness.html
         warnings.warn('You have chosen to seed training. '
                       'This will turn on the CUDNN deterministic setting, '
                       'which can slow down your training considerably! '
