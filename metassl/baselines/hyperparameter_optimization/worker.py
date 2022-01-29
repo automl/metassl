@@ -16,8 +16,8 @@ class HPOWorker(Worker):
         # RUN PRETRAINING
         trial_dir = pt_main(self.args, trial_dir=self.trial_dir, bohb_infos=bohb_infos)
         # RUN FINETUNING + GET VALIDATION METRIC
-        val_metric = ft_main(self.args, trial_dir=trial_dir, bohb_infos=bohb_infos)
+        val_metric, test_metric = ft_main(self.args, trial_dir=trial_dir, bohb_infos=bohb_infos)
         return {
             "loss": -1 * val_metric,
-            "info": {"test/metric": 0},
+            "info": {"test/metric": test_metric},
         }  # remember: HpBandSter always minimizes!
