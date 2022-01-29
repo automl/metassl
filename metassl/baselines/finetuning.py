@@ -114,7 +114,10 @@ def main(args, trial_dir=None, bohb_infos=None):
         with open(trial_dir + "/current_val_metric.txt", 'r') as f:
             val_metric = f.read()
         print(f"{val_metric=}")
-        return float(val_metric)
+        with open(trial_dir + "/current_test_metric.txt", 'r') as f:
+            test_metric = f.read()
+        print(f"{test_metric=}")
+        return float(val_metric), float(test_metric)
     # ------------------------------------------------------------------------------------------------------------------
 
 
@@ -335,23 +338,21 @@ def main_worker(gpu, ngpus_per_node, args, logger=None, trial_dir=None, bohb_inf
                               sampler=train_sampler,
                               pin_memory=True,
                               drop_last=True)
-    if np.isclose(args.valid_size, 0.0):
-        print("TEST LOADER")
-        test_loader = DataLoader(testset,
-                                 batch_size=args.ft_batch_size,
-                                 shuffle=False,
-                                 num_workers=args.num_workers,
-                                 pin_memory=True,
-                                 drop_last=True)
-    else:
-        print("VALID LOADER")
-        valid_loader = DataLoader(validset,
-                                  batch_size=args.ft_batch_size,
-                                  shuffle=(valid_sampler is None),
-                                  num_workers=args.num_workers,
-                                  sampler=valid_sampler,
-                                  pin_memory=True,
-                                  drop_last=True)
+
+    test_loader = DataLoader(testset,
+                             batch_size=args.ft_batch_size,
+                             shuffle=False,
+                             num_workers=args.num_workers,
+                             pin_memory=True,
+                             drop_last=True)
+
+    valid_loader = DataLoader(validset,
+                              batch_size=args.ft_batch_size,
+                              shuffle=(valid_sampler is None),
+                              num_workers=args.num_workers,
+                              sampler=valid_sampler,
+                              pin_memory=True,
+                              drop_last=True)
 
     if args.evaluate:
         if np.isclose(args.valid_size, 0.0):
@@ -373,7 +374,7 @@ def main_worker(gpu, ngpus_per_node, args, logger=None, trial_dir=None, bohb_inf
             acc1 = validate(test_loader, model, criterion, args)
         else:
             acc1 = validate(valid_loader, model, criterion, args)
-        logger.add_scalar('FineTune_Acc/val_top1', acc1, epoch)
+        logger.add_scalar('FineTune_Acc/eval_top1', acc1, epoch)
 
         # remember best acc@1 and save checkpoint
         is_best = acc1 > best_acc1
@@ -394,11 +395,16 @@ def main_worker(gpu, ngpus_per_node, args, logger=None, trial_dir=None, bohb_inf
     print('Best acc:', best_acc1)
     logger.close()
 
+    test_acc = validate(test_loader, model, criterion, args)
+    print('Test acc:', test_acc)
+
     # BOHB only --------------------------------------------------------------------------------------------------------
     # Save validation metric in a .txt (as for mp.spawn returning values is not trivial)
     if bohb_infos is not None:
         with open(trial_dir + "/current_val_metric.txt", 'w+') as f:
             f.write(f"{acc1.item()}\n")
+        with open(trial_dir + "/current_test_metric.txt", 'w+') as f:
+            f.write(f"{test_acc.item()}\n")
     # ------------------------------------------------------------------------------------------------------------------
 
 def train(train_loader, model, criterion, optimizer, epoch, args, logger=None):
