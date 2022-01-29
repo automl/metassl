@@ -5,6 +5,7 @@ import math
 import random
 import warnings
 from os import path, makedirs
+import numpy as np
 
 import torch
 from torch import optim
@@ -29,7 +30,11 @@ def main(args, trial_dir=None, bohb_infos=None):
     if args.seed is not None:
         random.seed(args.seed)
         torch.manual_seed(args.seed)
+        np.random.seed(args.seed)
         # cudnn.deterministic = True
+        # torch.backends.cudnn.benchmark = True
+        # torch.use_deterministic_algorithms(True)
+        # + ADD DATALOADER: https://pytorch.org/docs/stable/notes/randomness.html
         warnings.warn(
             'You have chosen to seed training. '
             'This will turn on the CUDNN deterministic setting, '
@@ -209,8 +214,8 @@ def main(args, trial_dir=None, bohb_infos=None):
         # train and log for one epoch
         train_loss, current_weight_decay, image_1, image_2 = train(train_loader, model, criterion, optimizer, epoch, args, bohb_infos)
         logger.add_scalar('Loss/train', train_loss, epoch)
-        logger.add_images('Train/Image1', image_1, epoch)
-        logger.add_images('Train/Image2', image_2, epoch)
+        # logger.add_images('Train/Image1', image_1, epoch)
+        # logger.add_images('Train/Image2', image_2, epoch)
 
         if epoch % args.eval_freq == 0:
             print("Validating...")
@@ -274,8 +279,8 @@ def train(train_loader, model, criterion, optimizer, epoch, args, bohb_infos):
                 end_weight_decay = max(bohb_infos['bohb_config']['weight_decay_value_1'], bohb_infos['bohb_config']['weight_decay_value_2'])
         else:
             # Set weight decay parameters manually
-            start_weight_decay = 1
-            end_weight_decay = 0
+            start_weight_decay = 0.0008092665252874738
+            end_weight_decay = 4.85718829247867e-06
         # Do annealing
         if epoch == 1:
             for group in optimizer.param_groups:
