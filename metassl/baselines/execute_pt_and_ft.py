@@ -71,6 +71,7 @@ if __name__ == '__main__':
     parser.add_argument('--ft_hue_strength', default=0.1, type=float, help='Hue strength parameterized')
     parser.add_argument('--is_trivialaugment', action='store_true', help='Set this flag augment pretraining data with trivialaugment')
     parser.add_argument('--is_smartsamplingaugment', action='store_true', help='Set this flag augment pretraining data with smartsamplingaugment')
+    parser.add_argument('--trivialaugment_ops_mode', type=str, default='default', choices=['default', 'default_RandomResizeCrop', 'color-only', 'color-only_RandomResizeCrop', 'geometric-only', 'geometric-only_RandomResizeCrop'], help="Select which augmentations are used for trivialaugment")
     parser.add_argument('--do_weight_decay_annealing', action='store_true', help='Set this flag to do weight decay annealing')
     args = parser.parse_args()
 

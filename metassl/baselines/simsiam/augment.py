@@ -171,6 +171,28 @@ def Rotate(data, v, is_segmentation):  # [-30, 30]
     else:
         return data.rotate(v)
 
+def RandomResizeCrop(data, v, is_segmentation):
+    if is_segmentation:
+        raise NotImplementedError
+
+    # Get data size (32x32 for CIFAR10)
+    data_width = data.size[0]
+    data_height = data.size[1]
+
+    # Resize data (if v is between 0.2 and 1.0: -> 'zoom in')
+    data = data.resize((int(data_width + data_width * v), int(data_height + data_height * v)))
+    data_resized_width = data.size[0]
+    data_resized_height = data.size[1]
+
+    # Crop to get original data size back (32x32 for CIFAR10)
+    left = random.randrange(0, data_resized_width - data_width)
+    top = random.randrange(0, data_resized_height - data_height)
+    right = left + data_width
+    bottom = top + data_height
+    data = data.crop((left, top, right, bottom))
+
+    return data
+
 ########################################################################################################################
 
 def augment_list():  # default opterations used in RandAugment paper
@@ -273,13 +295,29 @@ class RandAugment:
 
 
 class TrivialAugment:
-    def __init__(self, is_segmentation=False):
+    def __init__(self, augmentation_ops_mode, is_segmentation=False):
+        self.augmentation_ops_mode = augmentation_ops_mode
         self.augment_list = augment_list()
+        self.color_augment_list = col_augment_list()
+        self.geo_augment_list = geo_augment_list()
         self.is_segmentation = is_segmentation
 
     def __call__(self, data):
-        ops = random.choices(self.augment_list, k=1)
-        # print(f"{ops=}")
+        # Select augmentation list to sample from
+        if self.augmentation_ops_mode.startswith('default'):
+            ops = random.choices(self.augment_list, k=1)
+        elif self.augmentation_ops_mode.startswith('color-only'):
+            ops = random.choices(self.color_augment_list, k=1)
+        elif self.augmentation_ops_mode.startswith('geometric-only'):
+            ops = random.choices(self.geo_augment_list, k=1)
+        else:
+            raise NotImplementedError
+        # Choose whether to first apply RandomResizeCrop or not
+        # If RandomResizeCrop is applied, it is applied before the other ops get applied (as it is done in SimSiam)
+        if self.augmentation_ops_mode.endswith('RandomResizeCrop'):
+            basic_op = [(RandomResizeCrop, 0.2, 1.)]
+            ops = basic_op + ops
+
         magnitude = random.randint(0, 30)
         for op, minval, maxval in ops:
             magnitude_val = (float(magnitude) / 30) * float(maxval - minval) + minval

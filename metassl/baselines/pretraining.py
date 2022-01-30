@@ -157,14 +157,16 @@ def main(args, trial_dir=None, bohb_infos=None):
                                      train=True,
                                      download=True,
                                      transform=None,
-                                     augmentation_mode="trivialaugment")
+                                     augmentation_mode="trivialaugment",
+                                     augmentation_ops_mode=args.trivialaugment_ops_mode)
     elif args.is_smartsamplingaugment:
         print("\n\n\n SMARTSAMPLING AUGMENT \n\n\n")
         train_set = Cifar10AugmentPT(root=args.data_root,
                                      train=True,
                                      download=True,
                                      transform=None,
-                                     augmentation_mode="smartsamplingaugment")
+                                     augmentation_mode="smartsamplingaugment",
+                                     augmentation_ops_mode=None)
     else:
         train_set = datasets.CIFAR10(root=args.data_root,
                                  train=True,
