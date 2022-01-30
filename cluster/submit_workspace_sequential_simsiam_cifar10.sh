@@ -11,16 +11,13 @@ python3 -c "import torch; print(torch.__version__)"
 python3 -c "import torch; print(torch.cuda.is_available())"
 
 python -m metassl.baselines.execute_pt_and_ft --gpu 0 \
-       	--valid_size 0.0 \
-	--seed 5 \
+       	--valid_size 0.1 \
+	--seed 4 \
 	--pt_learning_rate 0.06 \
        	--trial $EXPERIMENT_NAME \
 	--exp_dir "/work/dlclarge2/wagnerd-metassl-experiments/CIFAR10" \
-	--do_weight_decay_annealing
 	--pretrained /work/dlclarge2/wagnerd-metassl-experiments/CIFAR10/$EXPERIMENT_NAME/$EXPERIMENT_NAME \
-	# --pretrained /work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10/weight_decay_annealing/104-0-0/weight_decay_annealing/weight_decay_annealing \
-
-# --use_fix_aug_params --brightness_strength 0.4247967568716101 --contrast_strength 1.1108046612978293 --saturation_strength 0.0019149552189590801 --hue_strength 0.01511293198806661
+	--use_fix_aug_params --brightness_strength 1.0684649657099303 --contrast_strength 0.7830870112737627 --saturation_strength 0.06963168751907613 --hue_strength 0.08283567444533997
 
 # --ft_brightness_strength 0.7269498100347377 --ft_contrast_strength 1.188342814448252 --ft_saturation_strength 0.490243242105925 --ft_hue_strength 0.16944211021863254
 # --use_fix_aug_params_ft
