@@ -10,11 +10,12 @@ from metassl.baselines.simsiam.augment import TrivialAugment, SmartSamplingAugme
 
 
 class Cifar10AugmentPT(torchvision.datasets.CIFAR10):
-    def __init__(self, root="~/data/cifar10", train=True, download=True, transform=None, augmentation_mode=None):
+    def __init__(self, root="~/data/cifar10", train=True, download=True, transform=None, augmentation_mode=None, augmentation_ops_mode=None):
         super().__init__(root=root, train=train, download=download, transform=transform)
-        self.trivialaugment = TrivialAugment()
+        self.trivialaugment = TrivialAugment(augmentation_ops_mode)
         self.smartsamplingaugment = SmartSamplingAugment(max_epochs=800, current_epoch=800)
         self.augmentation_mode = augmentation_mode
+        self.augmentation_ops_mode = augmentation_ops_mode
 
     def __getitem__(self, index):
         image, label = self.data[index], self.targets[index]
