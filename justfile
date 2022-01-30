@@ -51,7 +51,7 @@
 # Start master for color jitter configspace on the login node
 @login-master-cj EXPERIMENT_NAME:
   #!/usr/bin/env bash
-  python3 -m metassl.baselines.execute_pt_and_ft --gpu 0 --is_bohb_run --valid_size 0.1 --seed 1 --trial {{EXPERIMENT_NAME}} --exp_dir "/work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10" --pretrained /work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10/{{EXPERIMENT_NAME}}/{{EXPERIMENT_NAME}} --n_iterations 250 --run_id "color_jitter_strengths" --configspace_mode 'color_jitter_strengths' --pt_learning_rate 0.06 --shutdown_workers --nic_name "enp1s0"
+  python3 -m metassl.baselines.execute_pt_and_ft --gpu 0 --is_bohb_run --valid_size 0.1 --seed 0 --trial {{EXPERIMENT_NAME}} --exp_dir "/work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10" --pretrained /work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10/{{EXPERIMENT_NAME}}/{{EXPERIMENT_NAME}} --n_iterations 100 --run_id "color_jitter_strengths" --configspace_mode 'color_jitter_strengths' --pt_learning_rate 0.06 --shutdown_workers --nic_name "enp1s0"
 
 # Submit worker for color jitter configspace to train SimSiam on CIFAR10 with BOHB
 @worker-cj EXPERIMENT_NAME:
