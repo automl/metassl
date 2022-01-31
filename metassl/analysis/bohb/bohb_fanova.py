@@ -38,6 +38,6 @@ def get_fanova_plots(path, config_space):
 
 
 if __name__ == "__main__":
-    result_path = "/home/wagn3rd/Projects/metassl/results/diane/BO_cifar10_25p_paug"
-    config_space = get_probability_augment_configspace()
+    result_path = "/home/wagn3rd/Projects/metassl/results/diane/BO_color-jitter-strength_new-val"
+    config_space = get_color_jitter_strengths_configspace()
     get_fanova_plots(path=result_path, config_space=config_space)

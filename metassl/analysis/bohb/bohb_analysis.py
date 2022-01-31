@@ -65,6 +65,140 @@ def make_analysis(path):
     plt.savefig(path_plots + "/performance_histogram_model_vs_random.png")
 
 
-if __name__ == "__main__":
-    result_path = "/home/wagn3rd/Projects/metassl/results/diane/BO_cifar10_25p_paug"
-    make_analysis(path=result_path)
+# if __name__ == "__main__":
+#     result_path = "/home/wagn3rd/Projects/metassl/results/diane/BO_color-jitter-strength_new-val"
+#     make_analysis(path=result_path)
+
+# https://github.com/automl/HpBandSter/blob/master/hpbandster/core/result.py
+
+
+
+def get_pandas_dataframe(result, budgets=None, loss_fn=lambda r: r.loss):
+    import numpy as np
+    import pandas as pd
+
+    id2conf = result.get_id2config_mapping()
+
+    df_x = pd.DataFrame()
+    df_y = pd.DataFrame()
+
+    if budgets is None:
+        budgets = result.HB_config['budgets']
+
+    all_runs = result.get_all_runs(only_largest_budget=False)
+    all_runs = list(filter(lambda r: r.budget in budgets, all_runs))
+
+    all_configs = []
+    all_losses = []
+
+    for r in all_runs:
+        if r.loss is None: continue
+        config = id2conf[r.config_id]['config']
+        if len(budgets) > 1:
+            config['budget'] = r.budget
+
+        all_configs.append(config)
+        all_losses.append({'loss': loss_fn(r)})
+
+    # df_x = df_x.append(config, ignore_index=True)
+    # df_y = df_y.append({'loss': r.loss}, ignore_index=True)
+
+    df_X = pd.DataFrame(all_configs)
+    df_y = pd.DataFrame(all_losses)
+
+    return (df_X, df_y)
+
+# for validation
+def get_incumbent_value(metrics, iterations):
+    return max(metrics[:iterations+1])
+
+# for test
+def get_best_validation_index(metrics, iterations):
+    values = metrics[:iterations+1]
+    return max(range(len(values)), key=values.__getitem__)
+
+# %%
+result_path = "/home/wagn3rd/Projects/metassl/results/diane/BO_color-jitter-strength_new-val"
+result = hpres.logged_results_to_HBS_result(result_path)
+
+configs, val_metrics = result.get_pandas_dataframe()
+val_metrics = -val_metrics
+val_metrics = val_metrics.to_dict()["loss"]
+val_metrics = [val_metrics[i] for i in range(len(val_metrics))]
+
+#%%
+configs, test_metrics = get_pandas_dataframe(result, budgets=None, loss_fn=lambda r: r.info["test/metric"])
+test_metrics = test_metrics.to_dict()["loss"]
+test_metrics = [test_metrics[i] for i in range(len(test_metrics))]
+
+
+
+
+#%%
+test_incumbent = [get_best_validation_index(val_metrics, i) for i in range(len(test_metrics))]
+y = get_best_validation_index(test_metrics, 1)
+
+#%%
+test_incumbent = [test_metrics[i] for i in test_incumbent]
+val_incumbent = [get_incumbent_value(val_metrics, i) for i in range(len(val_metrics))]
+
+# for plot 1
+baseline_val = [91.41, 91.67, 91.45, 92.19, 91.49]
+baseline_test = [90.47, 91.14, 90.80, 90.91, 90.74]
+
+# for plot 2
+best_baseline_val = [92.19]
+best_baseline_test = [90.91]
+
+#%%
+# for plot 1
+baseline_records_val = []
+for i in range(1, len(val_incumbent) + 1):
+    for baseline_acc in baseline_val:
+        baseline_records_val.append(dict(Accuracy=baseline_acc, Run="baseline_val", Iteration=i))
+
+baseline_records_test = []
+for i in range(1, len(test_incumbent) + 1):
+    for baseline_acc in baseline_test:
+        baseline_records_test.append(dict(Accuracy=baseline_acc, Run="baseline_val_on_test", Iteration=i))
+
+# for plot 2
+best_baseline_records_val = []
+for i in range(1, len(val_incumbent) + 1):
+    for baseline_acc in best_baseline_val:
+        best_baseline_records_val.append(dict(Accuracy=baseline_acc, Run="best_baseline_val", Iteration=i))
+
+best_baseline_records_test = []
+for i in range(1, len(test_incumbent) + 1):
+    for baseline_acc in best_baseline_test:
+        best_baseline_records_test.append(dict(Accuracy=baseline_acc, Run="best_baseline_val_on_test", Iteration=i))
+
+#%%
+# BOHB
+test_records = [dict(Accuracy=acc, Run="best_bohb_val_on_test", Iteration=i) for i, acc in enumerate(test_incumbent, 1)]
+val_records = [dict(Accuracy=acc, Run="best_bohb_val", Iteration=i) for i, acc in enumerate(val_incumbent, 1)]
+
+
+#%%
+import pandas as pd
+# for plot 1
+data = pd.DataFrame.from_records(val_records + test_records + baseline_records_val + baseline_records_test)
+
+# for plot 2
+best_data = pd.DataFrame.from_records(val_records + test_records + best_baseline_records_val + best_baseline_records_test)
+
+#%%
+import seaborn as sns
+# sns.set_context("talk")
+sns.set_style("ticks")  # todo: check
+
+#%%
+plot_1 = sns.lineplot(data=data, x="Iteration", y="Accuracy", hue="Run", ci="sd")  # 66: 66% confidence intervall > means: standard error
+figure_1 = plot_1.get_figure()
+figure_1.show()
+
+
+#%%
+plot_2 = sns.lineplot(data=best_data, x="Iteration", y="Accuracy", hue="Run", ci="sd")
+figure_2 = plot_2.get_figure()
+figure_2.show()

@@ -35,7 +35,7 @@ def probability_augment(
         p_geometric_transformations = 0.25
         p_non_rigid_transformations = 0.25
         p_quality_transformations = 0.25
-        p_exotic_transformations = 0
+        p_exotic_transformations = 0.25
 
     # BOHB - probability_augment configspace
     if bohb_infos is not None:
@@ -94,6 +94,7 @@ def probability_augment(
                         # RandomShadow(p=1),
                     ], p=p_exotic_transformations),
                     Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2023, 0.1994, 0.2010]),
+                    # Normalize(mean=[0, 0, 0], std=[1, 1, 1]),  # for testing in Tensorboard
                     ToTensorV2(),
                 ], p=1)
 

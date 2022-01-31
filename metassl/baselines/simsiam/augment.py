@@ -193,6 +193,15 @@ def RandomResizeCrop(data, v, is_segmentation):
 
     return data
 
+def HorizontalFlip(data, _, is_segmentation):
+    if is_segmentation:
+        raise NotImplementedError
+    random_flip_value = random.uniform(0, 1)
+    if random_flip_value >= 0.5:
+        return data.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+    else:
+        return data
+
 ########################################################################################################################
 
 def augment_list():  # default opterations used in RandAugment paper
@@ -316,7 +325,12 @@ class TrivialAugment:
         # If RandomResizeCrop is applied, it is applied before the other ops get applied (as it is done in SimSiam)
         if self.augmentation_ops_mode.endswith('RandomResizeCrop'):
             basic_op = [(RandomResizeCrop, 0.2, 1.)]
-            ops = basic_op + ops
+            apply_horizontal_flip = True  # TODO: implement flag for this / reorganize
+            if apply_horizontal_flip:
+                hf = [(HorizontalFlip, 0, 1)]
+                ops = basic_op + hf + ops
+            else:
+                ops = basic_op + ops
 
         magnitude = random.randint(0, 30)
         for op, minval, maxval in ops:

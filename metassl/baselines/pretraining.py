@@ -21,8 +21,8 @@ from metassl.baselines.simsiam.loader import TwoCropsTransform
 from metassl.baselines.simsiam.model_factory import SimSiam
 from metassl.baselines.simsiam.criterion import SimSiamLoss
 from metassl.baselines.simsiam.validation import KNNValidation
-
-
+from metassl.utils.albumentation_datasets import Cifar10AlbumentationsPT
+from metassl.utils.probability_augment import probability_augment
 
 
 def main(args, trial_dir=None, bohb_infos=None):
@@ -140,16 +140,24 @@ def main(args, trial_dir=None, bohb_infos=None):
     # For testing pt_learning_rate
     print(f"{args.pt_learning_rate=}")
     # ------------------------------------------------------------------------------------------------------------------
-    train_transforms = transforms.Compose([
-        transforms.RandomResizedCrop(args.img_dim, scale=(0.2, 1.)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomApply([
-            transforms.ColorJitter(brightness=brightness_strength, contrast=contrast_strength, saturation=saturation_strength, hue=hue_strength)  # not strengthened
-        ], p=p_colorjitter),
-        transforms.RandomGrayscale(p=p_grayscale),
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
-    ])
+    if args.is_probabilityaugment:
+        dataset_name = "CIFAR10"
+        get_fine_tuning_loaders = False
+        use_fix_aug_params = False
+        finetuning_data_augmentation = 'none'
+        train_transform, valid_transform = probability_augment(dataset_name, get_fine_tuning_loaders, bohb_infos,
+                                                               use_fix_aug_params, finetuning_data_augmentation)
+    else:
+        train_transforms = transforms.Compose([
+            transforms.RandomResizedCrop(args.img_dim, scale=(0.2, 1.)),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomApply([
+                transforms.ColorJitter(brightness=brightness_strength, contrast=contrast_strength, saturation=saturation_strength, hue=hue_strength)  # not strengthened
+            ], p=p_colorjitter),
+            transforms.RandomGrayscale(p=p_grayscale),
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+        ])
 
     if args.is_trivialaugment:
         print("\n\n\n TRIVIAL AUGMENT \n\n\n")
@@ -167,6 +175,12 @@ def main(args, trial_dir=None, bohb_infos=None):
                                      transform=None,
                                      augmentation_mode="smartsamplingaugment",
                                      augmentation_ops_mode=None)
+    elif args.is_probabilityaugment:
+        print("\n\n\n PROBABILITY AUGMENT \n\n\n")
+        train_set = Cifar10AlbumentationsPT(root=args.data_root,
+                                     train=True,
+                                     download=True,
+                                     transform=train_transform,)
     else:
         train_set = datasets.CIFAR10(root=args.data_root,
                                  train=True,
