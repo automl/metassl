@@ -50,7 +50,7 @@ if __name__ == '__main__':
     parser.add_argument("--max_budget", type=int, default=800)
     parser.add_argument("--budget_mode", type=str, default="epochs", choices=["epochs", "data"], help="Choose your desired fidelity")
     parser.add_argument("--eta", type=int, default=2)
-    parser.add_argument("--configspace_mode", type=str, default='color_jitter_strengths', choices=["imagenet_probability_simsiam_augment", "cifar10_probability_simsiam_augment", "color_jitter_strengths", 'double_color_jitter_strengths', 'lr_color_jitter_strengths', "rand_augment", "probability_augment", "double_probability_augment", "weight_decay_annealing"], help='Define which configspace to use.')
+    parser.add_argument("--configspace_mode", type=str, default='color_jitter_strengths', choices=["cifar10_simsiam_augment", "color_jitter_strengths", 'double_color_jitter_strengths', 'lr_color_jitter_strengths', "rand_augment", "probability_augment", "double_probability_augment", "weight_decay_annealing"], help='Define which configspace to use.')
     parser.add_argument("--nic_name", default="eth0", help="The network interface to use")  # local: "lo", cluster: "eth0"
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--worker", action="store_true", help="Make this execution a worker server")

@@ -101,11 +101,15 @@ def main(args, trial_dir=None, bohb_infos=None):
         saturation_strength = args.saturation_strength
         hue_strength = args.hue_strength
 
-    # BOHB - probability augment configspace
-    if bohb_infos is not None and bohb_infos['bohb_configspace'].endswith('probability_simsiam_augment'):
+    # BOHB - SimSiam Cifar10 augment configspace
+    if bohb_infos is not None and bohb_infos['bohb_configspace'] == 'cifar10_simsiam_augment':
         p_colorjitter = bohb_infos['bohb_config']['p_colorjitter']
         p_grayscale = bohb_infos['bohb_config']['p_grayscale']
         # p_gaussianblur = bohb_infos['bohb_config']['p_gaussianblur'] if dataset_name == 'ImageNet' else 0
+        brightness_strength = bohb_infos['bohb_config']['brightness_strength']
+        contrast_strength = bohb_infos['bohb_config']['contrast_strength']
+        saturation_strength = bohb_infos['bohb_config']['saturation_strength']
+        hue_strength = bohb_infos['bohb_config']['hue_strength']
 
     # BOHB - color jitter strengths configspace
     elif bohb_infos is not None and bohb_infos['bohb_configspace'].endswith('color_jitter_strengths'):
