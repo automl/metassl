@@ -22,7 +22,7 @@ from metassl.baselines.simsiam.model_factory import SimSiam
 from metassl.baselines.simsiam.criterion import SimSiamLoss
 from metassl.baselines.simsiam.validation import KNNValidation
 from metassl.utils.albumentation_datasets import Cifar10AlbumentationsPT
-from metassl.utils.probability_augment import probability_augment
+# from metassl.utils.probability_augment import probability_augment
 
 
 def main(args, trial_dir=None, bohb_infos=None):
