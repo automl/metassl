@@ -1,7 +1,7 @@
 import ConfigSpace as CS
 import ConfigSpace.hyperparameters as CSH
 
-def get_cifar10_probability_simsiam_augment_configspace():
+def get_cifar10_simsiam_augment_configspace():
     cs = CS.ConfigurationSpace()
     p_colorjitter = CSH.UniformFloatHyperparameter(
         "p_colorjitter", lower=0, upper=1, log=False, default_value=0.8,
@@ -9,7 +9,19 @@ def get_cifar10_probability_simsiam_augment_configspace():
     p_grayscale = CSH.UniformFloatHyperparameter(
         "p_grayscale", lower=0, upper=1, log=False, default_value=0.2,
     )
-    cs.add_hyperparameters([p_colorjitter, p_grayscale])
+    brightness_strength = CSH.UniformFloatHyperparameter(
+        "brightness_strength", lower=0, upper=1.2, log=False, default_value=0.4,
+    )
+    contrast_strength = CSH.UniformFloatHyperparameter(
+        "contrast_strength", lower=0, upper=1.2, log=False, default_value=0.4,
+    )
+    saturation_strength = CSH.UniformFloatHyperparameter(
+        "saturation_strength", lower=0, upper=1.2, log=False, default_value=0.4,
+    )
+    hue_strength = CSH.UniformFloatHyperparameter(
+        "hue_strength", lower=0, upper=0.4, log=False, default_value=0.1,
+    )
+    cs.add_hyperparameters([p_colorjitter, p_grayscale, brightness_strength, contrast_strength, saturation_strength, hue_strength])
     return cs
 
 def get_color_jitter_strengths_configspace():

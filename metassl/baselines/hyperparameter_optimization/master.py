@@ -13,7 +13,7 @@ import numpy as np
 from hpbandster.optimizers import BOHB as BOHB
 
 from metassl.baselines.hyperparameter_optimization.configspaces import \
-    get_cifar10_probability_simsiam_augment_configspace, get_color_jitter_strengths_configspace, \
+    get_cifar10_simsiam_augment_configspace, get_color_jitter_strengths_configspace, \
     get_double_color_jitter_strengths_configspace, get_lr_color_jitter_strengths_configspace, \
     get_rand_augment_configspace, get_probability_augment_configspace, get_double_probability_augment_configspace, \
     get_weight_decay_annealing_configspace
@@ -77,8 +77,8 @@ def run_master(args, trial_dir):
         pass
 
     # Select a configspace based on configspace_mode
-    if args.configspace_mode == "cifar10_probability_simsiam_augment":
-        configspace = get_cifar10_probability_simsiam_augment_configspace()
+    if args.configspace_mode == "cifar10_simsiam_augment":
+        configspace = get_cifar10_simsiam_augment_configspace()
     elif args.configspace_mode == "color_jitter_strengths":
         configspace = get_color_jitter_strengths_configspace()
     elif args.configspace_mode == "double_color_jitter_strengths":
