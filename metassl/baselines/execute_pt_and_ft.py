@@ -65,6 +65,8 @@ if __name__ == '__main__':
     parser.add_argument('--contrast_strength', default=0.4, type=float, help='Contrast strength parameterized')
     parser.add_argument('--saturation_strength', default=0.4, type=float, help='Saturation strength parameterized')
     parser.add_argument('--hue_strength', default=0.1, type=float, help='Hue strength parameterized')
+    parser.add_argument('--p_colorjitter', default=0.8, type=float, help='Colorjitter probability parameterized')
+    parser.add_argument('--p_grayscale', default=0.2, type=float, help='Grayscale probability parameterized')
     parser.add_argument('--ft_brightness_strength', default=0.4, type=float, help='Brightness strength parameterized')
     parser.add_argument('--ft_contrast_strength', default=0.4, type=float, help='Contrast strength parameterized')
     parser.add_argument('--ft_saturation_strength', default=0.4, type=float, help='Saturation strength parameterized')

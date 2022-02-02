@@ -93,8 +93,8 @@ def main(args, trial_dir=None, bohb_infos=None):
     if args.use_fix_aug_params:
         # You can overwrite parameters here if you want to try out a specific setting.
         # Due to the flag, default experiments won't be affected by this.
-        p_colorjitter = 0.8
-        p_grayscale = 0.2
+        p_colorjitter = args.p_colorjitter
+        p_grayscale = args.p_grayscale
         # p_gaussianblur = 0.5 if dataset_name == 'ImageNet' else 0
         brightness_strength = args.brightness_strength
         contrast_strength = args.contrast_strength
