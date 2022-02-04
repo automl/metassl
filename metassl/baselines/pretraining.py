@@ -251,7 +251,7 @@ def main(args, trial_dir=None, bohb_infos=None):
                                 'Saving the best model!')
             logger.add_scalar('Acc/val_top1', val_top1_acc, epoch)
             # Log weight decay in Tensorboard
-            logger.add_scalar('Weight decay', current_weight_decay, epoch)
+            logger.add_scalar('Weight_decay/PT', current_weight_decay, epoch)
 
         # save the model
         if epoch % args.save_freq == 0:
@@ -288,19 +288,12 @@ def train(train_loader, model, criterion, optimizer, epoch, args, bohb_infos):
         current_epoch = epoch
         max_epochs = args.pt_epochs
         if args.is_bohb_run and args.configspace_mode == "weight_decay_annealing":
-            if bohb_infos['bohb_config']['direction'] == "high-to-low":
-                print("high-to-low")
-                start_weight_decay = max(bohb_infos['bohb_config']['weight_decay_value_1'], bohb_infos['bohb_config']['weight_decay_value_2'])
-                end_weight_decay = min(bohb_infos['bohb_config']['weight_decay_value_1'], bohb_infos['bohb_config']['weight_decay_value_2'])
-            else:
-                # "low-to-high"
-                print("low-to-high")
-                start_weight_decay = min(bohb_infos['bohb_config']['weight_decay_value_1'], bohb_infos['bohb_config']['weight_decay_value_2'])
-                end_weight_decay = max(bohb_infos['bohb_config']['weight_decay_value_1'], bohb_infos['bohb_config']['weight_decay_value_2'])
+            start_weight_decay = bohb_infos['bohb_config']['start_weight_decay_pt']
+            end_weight_decay = bohb_infos['bohb_config']['end_weight_decay_pt']
         else:
             # Set weight decay parameters manually
-            start_weight_decay = 0.0008092665252874738
-            end_weight_decay = 4.85718829247867e-06
+            start_weight_decay = 0.001
+            end_weight_decay = 0.000001
         # Do annealing
         if epoch == 1:
             for group in optimizer.param_groups:
@@ -313,7 +306,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args, bohb_infos):
     else:
         # Non-annealing case
         current_weight_decay = args.pt_weight_decay
-    print(f"{current_weight_decay=}")
+    print(f"PT: {current_weight_decay=}")
 
     for i, (images, _) in enumerate(train_loader):
 

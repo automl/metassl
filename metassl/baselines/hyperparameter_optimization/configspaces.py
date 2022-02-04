@@ -169,18 +169,21 @@ def get_double_probability_augment_configspace():
 
 def get_weight_decay_annealing_configspace():
     cs = CS.ConfigurationSpace()
-    weight_decay_value_1 = CSH.UniformFloatHyperparameter(
-        "weight_decay_value_1", lower=1e-8, upper=10, log=True, default_value=0.5,
+    start_weight_decay_pt = CSH.UniformFloatHyperparameter(
+        "start_weight_decay_pt", lower=1e-8, upper=10., log=True, default_value=5e-4,
     )
-    weight_decay_value_2 = CSH.UniformFloatHyperparameter(
-        "weight_decay_value_2", lower=1e-8, upper=10, log=True, default_value=0.5,
+    end_weight_decay_pt = CSH.UniformFloatHyperparameter(
+        "end_weight_decay_pt", lower=1e-8, upper=10., log=True, default_value=5e-4,
     )
-    direction = CSH.CategoricalHyperparameter(
-        "direction", choices=["low-to-high", "high-to-low"],
+    start_weight_decay_ft = CSH.UniformFloatHyperparameter(
+        "start_weight_decay_ft", lower=1e-8, upper=10.0, log=True, default_value=0.1,
+    )
+    end_weight_decay_ft = CSH.UniformFloatHyperparameter(
+        "end_weight_decay_ft", lower=1e-8, upper=10.0, log=True, default_value=0.1,
     )
 
     cs.add_hyperparameters(
-        [weight_decay_value_1, weight_decay_value_2, direction]
+        [start_weight_decay_pt, end_weight_decay_pt, start_weight_decay_ft, end_weight_decay_ft]
 
     )
     return cs

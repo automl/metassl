@@ -2,6 +2,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
 import builtins
+import math
 import os
 from os import path, makedirs
 import random
@@ -367,7 +368,7 @@ def main_worker(gpu, ngpus_per_node, args, logger=None, trial_dir=None, bohb_inf
         adjust_learning_rate(optimizer, epoch, args)
 
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch, args, logger=logger)
+        train(train_loader, model, criterion, optimizer, epoch, args, bohb_infos, logger=logger)
 
         # evaluate on validation or test set
         if np.isclose(args.valid_size, 0.0):
@@ -407,7 +408,7 @@ def main_worker(gpu, ngpus_per_node, args, logger=None, trial_dir=None, bohb_inf
             f.write(f"{test_acc.item()}\n")
     # ------------------------------------------------------------------------------------------------------------------
 
-def train(train_loader, model, criterion, optimizer, epoch, args, logger=None):
+def train(train_loader, model, criterion, optimizer, epoch, args, bohb_infos, logger=None):
     batch_time = AverageMeter('Time', ':6.3f')
     data_time = AverageMeter('Data', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
@@ -428,6 +429,34 @@ def train(train_loader, model, criterion, optimizer, epoch, args, logger=None):
     model.eval()
 
     end = time.time()
+
+    print(f"\n\n\n")
+    if args.do_weight_decay_annealing:
+        # Select weight decay parameters (based on whether it is a bohb run or not)
+        current_epoch = epoch
+        max_epochs = args.ft_epochs - 1
+        if args.is_bohb_run and args.configspace_mode == "weight_decay_annealing":
+            start_weight_decay = bohb_infos['bohb_config']['start_weight_decay_ft']
+            end_weight_decay = bohb_infos['bohb_config']['end_weight_decay_ft']
+        else:
+            # Set weight decay parameters manually
+            start_weight_decay = 0.1
+            end_weight_decay = 0
+        # Do annealing
+        if epoch == 0:
+            for group in optimizer.param_groups:
+                group['weight_decay'] = start_weight_decay
+                current_weight_decay = group['weight_decay']
+        else:
+            for group in optimizer.param_groups:
+                group['weight_decay'] = end_weight_decay + 1 / 2 * (start_weight_decay - end_weight_decay) * (
+                            1 + math.cos(current_epoch / max_epochs * math.pi))
+                current_weight_decay = group['weight_decay']
+    else:
+        # Non-annealing case
+        current_weight_decay = args.pt_weight_decay
+    print(f"FT: {current_weight_decay=}")
+
     for i, (images, target) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
@@ -458,6 +487,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args, logger=None):
         if i % args.print_freq == 0:
             progress.display(i)
         logger.add_scalar('FineTune_Loss/train', loss.item(), epoch)
+        logger.add_scalar('Weight_decay/FT', current_weight_decay, epoch)
 
 
 def validate(loader, model, criterion, args):
