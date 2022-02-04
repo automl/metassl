@@ -57,7 +57,7 @@
 @worker-cj EXPERIMENT_NAME:
   #!/usr/bin/env bash
   mkdir -p /work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/
-  sbatch --exclude=dlcgpu42 --output=/work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%A.%a.%N.err_out --error=/work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%A.%a.%N.err_out --export=EXPERIMENT_NAME={{EXPERIMENT_NAME}} cluster/submit_worker-cj_sequential_simsiam_cifar10.sh
+  sbatch --exclude=dlcgpu15 --output=/work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%A.%a.%N.err_out --error=/work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%A.%a.%N.err_out --export=EXPERIMENT_NAME={{EXPERIMENT_NAME}} cluster/submit_worker-cj_sequential_simsiam_cifar10.sh
 
 
 # Start master for jointly lr + color jitter configspace on the login node

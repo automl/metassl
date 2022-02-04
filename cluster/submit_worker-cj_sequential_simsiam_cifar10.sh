@@ -5,7 +5,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH -J MSSL_W_Cifar10_SimSiam
 #SBATCH -t 0-15:00 # time (D-HH:MM)
-#SBATCH --array 0-499%39
+#SBATCH --array 0-499%10
 
 pip list
 
