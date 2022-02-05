@@ -39,13 +39,13 @@
 # Start master for weight decay configspace on the login node
 @login-master-wd EXPERIMENT_NAME:
   #!/usr/bin/env bash
-  python3 -m metassl.baselines.execute_pt_and_ft --gpu 0 --is_bohb_run --valid_size 0.1 --seed 1 --trial {{EXPERIMENT_NAME}} --exp_dir "/work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10" --pretrained /work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10/{{EXPERIMENT_NAME}}/{{EXPERIMENT_NAME}} --n_iterations 250 --run_id "weight_decay_annealing" --configspace_mode 'weight_decay_annealing' --do_weight_decay_annealing --pt_learning_rate 0.06 --shutdown_workers --nic_name "enp1s0"
+  python3 -m metassl.baselines.execute_pt_and_ft --gpu 0 --is_bohb_run --valid_size 0.1 --seed 0 --trial {{EXPERIMENT_NAME}} --exp_dir "/work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10" --pretrained /work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10/{{EXPERIMENT_NAME}}/{{EXPERIMENT_NAME}} --n_iterations 500 --run_id "weight_decay_annealing" --configspace_mode 'weight_decay_annealing' --do_weight_decay_annealing --pt_learning_rate 0.06 --shutdown_workers --nic_name "enp1s0"
 
 # Submit worker for weight decay annealing configspace to train SimSiam on CIFAR10 with BOHB
 @worker-wd EXPERIMENT_NAME:
   #!/usr/bin/env bash
   mkdir -p /work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/
-  sbatch --exclude=dlcgpu42 --output=/work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%A.%a.%N.err_out --error=/work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%A.%a.%N.err_out --export=EXPERIMENT_NAME={{EXPERIMENT_NAME}} cluster/submit_worker-wd_sequential_simsiam_cifar10.sh
+  sbatch --exclude=dlcgpu27,dlcgpu15 --output=/work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%A.%a.%N.err_out --error=/work/dlclarge2/wagnerd-metassl-experiments/BOHB/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%A.%a.%N.err_out --export=EXPERIMENT_NAME={{EXPERIMENT_NAME}} cluster/submit_worker-wd_sequential_simsiam_cifar10.sh
 
 
 # Start master for color jitter configspace on the login node
