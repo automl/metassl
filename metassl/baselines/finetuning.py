@@ -81,7 +81,7 @@ def main(args, trial_dir=None, bohb_infos=None):
     # ------------------------------------------------------------------------------------------------------------------
     # Specify pretraining learning rate
     # ------------------------------------------------------------------------------------------------------------------
-    if bohb_infos is not None and bohb_infos['bohb_configspace'] == 'lr_color_jitter_strengths':
+    if bohb_infos is not None and bohb_infos['bohb_configspace'].startswith('lr_'):
         args.ft_learning_rate = bohb_infos['bohb_config']['ft_learning_rate']
 
     # For testing pt_learning_rate

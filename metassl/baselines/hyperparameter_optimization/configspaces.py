@@ -24,6 +24,35 @@ def get_cifar10_simsiam_augment_configspace():
     cs.add_hyperparameters([p_colorjitter, p_grayscale, brightness_strength, contrast_strength, saturation_strength, hue_strength])
     return cs
 
+def get_lr_cifar10_simsiam_augment_configspace():
+    cs = CS.ConfigurationSpace()
+    p_colorjitter = CSH.UniformFloatHyperparameter(
+        "p_colorjitter", lower=0, upper=1, log=False, default_value=0.8,
+    )
+    p_grayscale = CSH.UniformFloatHyperparameter(
+        "p_grayscale", lower=0, upper=1, log=False, default_value=0.2,
+    )
+    brightness_strength = CSH.UniformFloatHyperparameter(
+        "brightness_strength", lower=0, upper=1.2, log=False, default_value=0.4,
+    )
+    contrast_strength = CSH.UniformFloatHyperparameter(
+        "contrast_strength", lower=0, upper=1.2, log=False, default_value=0.4,
+    )
+    saturation_strength = CSH.UniformFloatHyperparameter(
+        "saturation_strength", lower=0, upper=1.2, log=False, default_value=0.4,
+    )
+    hue_strength = CSH.UniformFloatHyperparameter(
+        "hue_strength", lower=0, upper=0.4, log=False, default_value=0.1,
+    )
+    pt_learning_rate = CSH.UniformFloatHyperparameter(
+        "pt_learning_rate", lower=0.01, upper=0.1, log=True, default_value=0.06
+    )
+    ft_learning_rate = CSH.UniformFloatHyperparameter(
+        "ft_learning_rate", lower=10, upper=50, log=True, default_value=30
+    )
+    cs.add_hyperparameters([p_colorjitter, p_grayscale, brightness_strength, contrast_strength, saturation_strength, hue_strength, pt_learning_rate, ft_learning_rate])
+    return cs
+
 def get_color_jitter_strengths_configspace():
     cs = CS.ConfigurationSpace()
     brightness_strength = CSH.UniformFloatHyperparameter(

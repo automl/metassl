@@ -16,7 +16,7 @@ from metassl.baselines.hyperparameter_optimization.configspaces import \
     get_cifar10_simsiam_augment_configspace, get_color_jitter_strengths_configspace, \
     get_double_color_jitter_strengths_configspace, get_lr_color_jitter_strengths_configspace, \
     get_rand_augment_configspace, get_probability_augment_configspace, get_double_probability_augment_configspace, \
-    get_weight_decay_annealing_configspace
+    get_weight_decay_annealing_configspace, get_lr_cifar10_simsiam_augment_configspace
 from metassl.baselines.hyperparameter_optimization.worker import HPOWorker
 from metassl.baselines.hyperparameter_optimization.dispatcher import add_shutdown_worker_to_register_result
 
@@ -79,6 +79,8 @@ def run_master(args, trial_dir):
     # Select a configspace based on configspace_mode
     if args.configspace_mode == "cifar10_simsiam_augment":
         configspace = get_cifar10_simsiam_augment_configspace()
+    elif args.configspace_mode == "lr_cifar10_simsiam_augment":
+        configspace = get_lr_cifar10_simsiam_augment_configspace()
     elif args.configspace_mode == "color_jitter_strengths":
         configspace = get_color_jitter_strengths_configspace()
     elif args.configspace_mode == "double_color_jitter_strengths":

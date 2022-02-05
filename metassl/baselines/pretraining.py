@@ -102,7 +102,7 @@ def main(args, trial_dir=None, bohb_infos=None):
         hue_strength = args.hue_strength
 
     # BOHB - SimSiam Cifar10 augment configspace
-    if bohb_infos is not None and bohb_infos['bohb_configspace'] == 'cifar10_simsiam_augment':
+    if bohb_infos is not None and bohb_infos['bohb_configspace'].endswith('cifar10_simsiam_augment'):
         p_colorjitter = bohb_infos['bohb_config']['p_colorjitter']
         p_grayscale = bohb_infos['bohb_config']['p_grayscale']
         # p_gaussianblur = bohb_infos['bohb_config']['p_gaussianblur'] if dataset_name == 'ImageNet' else 0
@@ -127,7 +127,7 @@ def main(args, trial_dir=None, bohb_infos=None):
     # ------------------------------------------------------------------------------------------------------------------
     # Specify pretraining learning rate
     # ------------------------------------------------------------------------------------------------------------------
-    if bohb_infos is not None and bohb_infos['bohb_configspace'] == 'lr_color_jitter_strengths':
+    if bohb_infos is not None and bohb_infos['bohb_configspace'].startswith('lr_'):
         args.pt_learning_rate = bohb_infos['bohb_config']['pt_learning_rate']
 
     # ------------------------------------------------------------------------------------------------------------------
