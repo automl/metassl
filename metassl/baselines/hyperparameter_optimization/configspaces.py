@@ -9,6 +9,12 @@ def get_cifar10_simsiam_augment_configspace():
     p_grayscale = CSH.UniformFloatHyperparameter(
         "p_grayscale", lower=0, upper=1, log=False, default_value=0.2,
     )
+    p_solarize = CSH.UniformFloatHyperparameter(
+        "p_solarize", lower=0, upper=1, log=False, default_value=0.0,
+    )
+    solarize_threshold = CSH.UniformIntegerHyperparameter(
+        "solarize_threshold", lower=0, upper=255, log=False, default_value=100,
+    )
     brightness_strength = CSH.UniformFloatHyperparameter(
         "brightness_strength", lower=0, upper=1.2, log=False, default_value=0.4,
     )
@@ -21,7 +27,7 @@ def get_cifar10_simsiam_augment_configspace():
     hue_strength = CSH.UniformFloatHyperparameter(
         "hue_strength", lower=0, upper=0.4, log=False, default_value=0.1,
     )
-    cs.add_hyperparameters([p_colorjitter, p_grayscale, brightness_strength, contrast_strength, saturation_strength, hue_strength])
+    cs.add_hyperparameters([p_colorjitter, p_grayscale, p_solarize, solarize_threshold, brightness_strength, contrast_strength, saturation_strength, hue_strength])
     return cs
 
 def get_lr_cifar10_simsiam_augment_configspace():
