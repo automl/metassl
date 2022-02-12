@@ -204,15 +204,9 @@ def get_weight_decay_annealing_configspace():
     end_weight_decay_pt = CSH.UniformFloatHyperparameter(
         "end_weight_decay_pt", lower=1e-8, upper=10., log=True, default_value=5e-4,
     )
-    start_weight_decay_ft = CSH.UniformFloatHyperparameter(
-        "start_weight_decay_ft", lower=1e-8, upper=10.0, log=True, default_value=0.1,
-    )
-    end_weight_decay_ft = CSH.UniformFloatHyperparameter(
-        "end_weight_decay_ft", lower=1e-8, upper=10.0, log=True, default_value=0.1,
-    )
 
     cs.add_hyperparameters(
-        [start_weight_decay_pt, end_weight_decay_pt, start_weight_decay_ft, end_weight_decay_ft]
+        [start_weight_decay_pt, end_weight_decay_pt]
 
     )
     return cs
