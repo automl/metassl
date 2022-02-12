@@ -85,16 +85,21 @@ def main(args, trial_dir=None, bohb_infos=None):
     # Defaults
     p_colorjitter = 0.8
     p_grayscale = 0.2
+    p_solarize = 0
+    solarize_threshold = 255
     # p_gaussianblur = 0.5 if dataset_name == 'ImageNet' else 0
     brightness_strength = 0.4
     contrast_strength = 0.4
     saturation_strength = 0.4
     hue_strength = 0.1
+
     if args.use_fix_aug_params:
         # You can overwrite parameters here if you want to try out a specific setting.
         # Due to the flag, default experiments won't be affected by this.
         p_colorjitter = args.p_colorjitter
         p_grayscale = args.p_grayscale
+        p_solarize = args.p_solarize
+        solarize_threshold = args.solarize_threshold
         # p_gaussianblur = 0.5 if dataset_name == 'ImageNet' else 0
         brightness_strength = args.brightness_strength
         contrast_strength = args.contrast_strength
@@ -105,7 +110,9 @@ def main(args, trial_dir=None, bohb_infos=None):
     if bohb_infos is not None and bohb_infos['bohb_configspace'].endswith('cifar10_simsiam_augment'):
         p_colorjitter = bohb_infos['bohb_config']['p_colorjitter']
         p_grayscale = bohb_infos['bohb_config']['p_grayscale']
+        p_solarize = bohb_infos['bohb_config']['p_solarize']
         # p_gaussianblur = bohb_infos['bohb_config']['p_gaussianblur'] if dataset_name == 'ImageNet' else 0
+        solarize_threshold = bohb_infos['bohb_config']['solarize_threshold']
         brightness_strength = bohb_infos['bohb_config']['brightness_strength']
         contrast_strength = bohb_infos['bohb_config']['contrast_strength']
         saturation_strength = bohb_infos['bohb_config']['saturation_strength']
@@ -135,7 +142,9 @@ def main(args, trial_dir=None, bohb_infos=None):
     print(f"\nPRETRAINING PARAMS")
     print(f"{p_colorjitter=}")
     print(f"{p_grayscale=}")
+    print(f"{p_solarize=}")
     # print(f"{p_gaussianblur=}")
+    print(f"{solarize_threshold=}")
     print(f"{brightness_strength=}")
     print(f"{contrast_strength=}")
     print(f"{saturation_strength=}")
@@ -159,6 +168,7 @@ def main(args, trial_dir=None, bohb_infos=None):
                 transforms.ColorJitter(brightness=brightness_strength, contrast=contrast_strength, saturation=saturation_strength, hue=hue_strength)  # not strengthened
             ], p=p_colorjitter),
             transforms.RandomGrayscale(p=p_grayscale),
+            transforms.RandomSolarize(threshold=solarize_threshold, p=p_solarize),
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
         ])
