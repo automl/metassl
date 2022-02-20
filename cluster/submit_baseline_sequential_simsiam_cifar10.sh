@@ -12,9 +12,10 @@ python3 -c "import torch; print(torch.cuda.is_available())"
 
 python -m metassl.baselines.execute_pt_and_ft --gpu 0 \
 	--valid_size 0.0 \
-	--seed 4 \
+	--seed 9 \
 	--pt_learning_rate 0.06 \
 	--trial $EXPERIMENT_NAME \
-	--exp_dir "/work/dlclarge2/wagnerd-metassl-experiments/CIFAR10" \
-	--pretrained /work/dlclarge2/wagnerd-metassl-experiments/CIFAR10/$EXPERIMENT_NAME/$EXPERIMENT_NAME
+	--exp_dir "/work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR10" \
+	--pretrained "/work/dlclarge2/wagnerd-metassl-experiments/baseline_code/CIFAR10/solarize_c130_seed9/ckpt_epoch_400_solarize_c130_seed9.pth"
+	# --pretrained /work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR10/$EXPERIMENT_NAME/$EXPERIMENT_NAME
 

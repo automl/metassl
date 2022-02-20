@@ -9,8 +9,8 @@
 # Submit Baseline for SimSiam on CIFAR10
 @baseline EXPERIMENT_NAME:
   #!/usr/bin/env bash
-  mkdir -p /work/dlclarge2/wagnerd-metassl-experiments/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/
-  sbatch --output=/work/dlclarge2/wagnerd-metassl-experiments/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%N.%j.err_out --error=/work/dlclarge2/wagnerd-metassl-experiments/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%N.%j.err_out --export=EXPERIMENT_NAME={{EXPERIMENT_NAME}} cluster/submit_baseline_sequential_simsiam_cifar10.sh
+  mkdir -p /work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/
+  sbatch --output=/work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%N.%j.err_out --error=/work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%N.%j.err_out --export=EXPERIMENT_NAME={{EXPERIMENT_NAME}} cluster/submit_baseline_sequential_simsiam_cifar10.sh
 
 # Submit workspace (baseline) experiment with SimSiam on CIFAR10
 @workspace EXPERIMENT_NAME:
