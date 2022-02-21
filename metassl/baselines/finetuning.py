@@ -52,6 +52,8 @@ def main(args, trial_dir=None, bohb_infos=None):
     if bohb_infos is not None:
         args.pretrained = trial_dir + "/" + args.trial + "_last.pth"
     else:
+        # TO RUN WITH METASSL CODE
+        # pass
         args.pretrained = args.pretrained + "_last.pth"
     if not path.exists(args.exp_dir):
         makedirs(args.exp_dir)
@@ -159,6 +161,8 @@ def main_worker(gpu, ngpus_per_node, args, logger=None, trial_dir=None, bohb_inf
     model.fc.bias.data.zero_()
 
     # load from pre-trained, before DistributedDataParallel constructor
+    # TO RUN WITH METASSL CODE
+    # args.pretrained = "experiments/CIFAR10/dipti/checkpoint_0799.pth.tar"
     if args.pretrained:
         if os.path.isfile(args.pretrained):
             print("=> loading checkpoint '{}'".format(args.pretrained))
@@ -167,6 +171,9 @@ def main_worker(gpu, ngpus_per_node, args, logger=None, trial_dir=None, bohb_inf
 
             new_state_dict = dict()
             for old_key, value in state_dict.items():
+                # TO RUN WITH METASSL CODE
+                # if old_key.startswith('module'):
+                #     old_key = old_key[len('module.'):]
                 if old_key.startswith('backbone') and 'fc' not in old_key:
                     new_key = old_key.replace('backbone.', '')
                     new_state_dict[new_key] = value
@@ -556,6 +563,9 @@ def sanity_check(state_dict, pretrained_weights):
 
         k_pre = 'backbone.' + k[len('module.'):] \
             if k.startswith('module.') else 'backbone.' + k
+
+        # TO RUN WITH METASSL CODE
+        # k_pre = 'module.backbone.' + k
 
         assert ((state_dict[k].cpu() == state_dict_pre[k_pre]).all()), \
             '{} is changed in linear classifier training.'.format(k)
