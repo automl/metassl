@@ -79,7 +79,14 @@ if __name__ == '__main__':
     parser.add_argument('--trivialaugment_ops_mode', type=str, default='default', choices=['default', 'default_RandomResizeCrop', 'color-only', 'color-only_RandomResizeCrop', 'geometric-only', 'geometric-only_RandomResizeCrop'], help="Select which augmentations are used for trivialaugment")
     parser.add_argument('--do_weight_decay_annealing', action='store_true', help='Set this flag to do weight decay annealing')
     parser.add_argument("--dataset_percentage_usage", type=float, default=100, help='How many percent of the data is used for experiments. Default is 100.')
+    parser.add_argument("--dataset", type=str, default="cifar10", choices=["cifar10", "cifar100"], help="Select the desired dataset. If cifar100 is selected, other flags as --data_root are adapted accordingly.")
     args = parser.parse_args()
+
+    # CIFAR100
+    if args.dataset == "cifar100":
+        args.data_root = "datasets/CIFAR100"
+        args.exp_dir = "experiments/CIFAR100"
+        args.num_cls = 100
 
     # Error check
     if np.isclose(args.valid_size, 0.0) and args.is_bohb_run:
@@ -92,6 +99,8 @@ if __name__ == '__main__':
         raise ValueError("--is_bohb_run can't be enabled together with --trivialaugment or --smartsamplingaugment at the same time!")
     if args.use_fix_aug_params_ft and not args.use_fix_aug_params:
         raise ValueError("If --use_fix_aug_params_ft is set, --use_fix_aug_params should also be set!")
+    if args.dataset == "cifar100" and (args.is_trivialaugment or args.is_smartsamplingaugment or args.is_probabilityaugment):
+        raise NotImplementedError
 
     if args.is_bohb_run:
         from metassl.baselines.hyperparameter_optimization.master import start_bohb_master

@@ -24,6 +24,15 @@ from metassl.baselines.simsiam.validation import KNNValidation
 from metassl.utils.albumentation_datasets import Cifar10AlbumentationsPT
 # from metassl.utils.probability_augment import probability_augment
 
+normalize_cifar10 = transforms.Normalize(
+    mean=[0.4914, 0.4822, 0.4465],
+    std=[0.2023, 0.1994, 0.2010]
+)
+
+normalize_cifar100 = transforms.Normalize(
+    mean=(0.5071, 0.4865, 0.4409),
+    std=(0.2673, 0.2564, 0.2762)
+)
 
 def main(args, trial_dir=None, bohb_infos=None):
     # adding seed
@@ -161,6 +170,12 @@ def main(args, trial_dir=None, bohb_infos=None):
         train_transform, valid_transform = probability_augment(dataset_name, get_fine_tuning_loaders, bohb_infos,
                                                                use_fix_aug_params, finetuning_data_augmentation)
     else:
+        if args.dataset == "cifar10":
+            normalize = normalize_cifar10
+        elif args.dataset == "cifar100":
+            normalize = normalize_cifar100
+        else:
+            raise NotImplementedError
         train_transforms = transforms.Compose([
             transforms.RandomResizedCrop(args.img_dim, scale=(0.2, 1.)),
             transforms.RandomHorizontalFlip(),
@@ -170,7 +185,7 @@ def main(args, trial_dir=None, bohb_infos=None):
             transforms.RandomGrayscale(p=p_grayscale),
             transforms.RandomSolarize(threshold=solarize_threshold, p=p_solarize),
             transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+            normalize
         ])
 
     if args.is_trivialaugment:
@@ -196,10 +211,18 @@ def main(args, trial_dir=None, bohb_infos=None):
                                      download=True,
                                      transform=train_transform,)
     else:
-        train_set = datasets.CIFAR10(root=args.data_root,
-                                 train=True,
-                                 download=True,
-                                 transform=TwoCropsTransform(train_transforms))
+        if args.dataset == "cifar10":
+            train_set = datasets.CIFAR10(root=args.data_root,
+                                         train=True,
+                                         download=True,
+                                         transform=TwoCropsTransform(train_transforms))
+        elif args.dataset == "cifar100":
+            train_set = datasets.CIFAR100(root=args.data_root,
+                                     train=True,
+                                     download=True,
+                                     transform=TwoCropsTransform(train_transforms))
+        else:
+            raise NotImplementedError
     train_sampler, _ = get_train_valid_sampler(args, train_set)
     train_loader = DataLoader(dataset=train_set,
                               batch_size=args.pt_batch_size,
