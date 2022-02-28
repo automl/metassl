@@ -78,6 +78,7 @@ if __name__ == '__main__':
     parser.add_argument('--is_probabilityaugment', action='store_true', help='Set this flag augment pretraining data with probabilityaugment')
     parser.add_argument('--trivialaugment_ops_mode', type=str, default='default', choices=['default', 'default_RandomResizeCrop', 'color-only', 'color-only_RandomResizeCrop', 'geometric-only', 'geometric-only_RandomResizeCrop'], help="Select which augmentations are used for trivialaugment")
     parser.add_argument('--do_weight_decay_annealing', action='store_true', help='Set this flag to do weight decay annealing')
+    parser.add_argument("--dataset_percentage_usage", type=float, default=100, help='How many percent of the data is used for experiments. Default is 100.')
     args = parser.parse_args()
 
     # Error check
