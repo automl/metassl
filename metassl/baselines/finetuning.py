@@ -46,6 +46,15 @@ def get_backbone(backbone_name, num_cls=10):
 
 best_acc1 = 0
 
+normalize_cifar10 = transforms.Normalize(
+    mean=[0.4914, 0.4822, 0.4465],
+    std=[0.2023, 0.1994, 0.2010]
+)
+
+normalize_cifar100 = transforms.Normalize(
+    mean=(0.5071, 0.4865, 0.4409),
+    std=(0.2673, 0.2564, 0.2762)
+)
 
 def main(args, trial_dir=None, bohb_infos=None):
 
@@ -126,6 +135,12 @@ def main(args, trial_dir=None, bohb_infos=None):
 
 def main_worker(gpu, ngpus_per_node, args, logger=None, trial_dir=None, bohb_infos=None):
     global best_acc1
+    if args.dataset == "cifar10":
+        normalize = normalize_cifar10
+    elif args.dataset == "cifar100":
+        normalize = normalize_cifar100
+    else:
+        raise NotImplementedError
     args.gpu = gpu
 
     # suppress printing if not master
@@ -281,7 +296,7 @@ def main_worker(gpu, ngpus_per_node, args, logger=None, trial_dir=None, bohb_inf
             ], p=p_colorjitter),
             transforms.RandomGrayscale(p=p_grayscale),
             transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+            normalize
         ])
     elif args.use_fix_aug_params_ft:
         print("FT - FIX AUG PARAMS")
@@ -315,7 +330,7 @@ def main_worker(gpu, ngpus_per_node, args, logger=None, trial_dir=None, bohb_inf
             ], p=p_colorjitter),
             transforms.RandomGrayscale(p=p_grayscale),
             transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+            normalize
         ])
     else:
         transform_train = transforms.Compose([
@@ -324,18 +339,25 @@ def main_worker(gpu, ngpus_per_node, args, logger=None, trial_dir=None, bohb_inf
                                          interpolation=Image.BICUBIC),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+            normalize
         ])
     transform_eval = transforms.Compose([
         transforms.Resize(int(32 * (8 / 7)), interpolation=Image.BICUBIC),
         transforms.CenterCrop(32),
         transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+        normalize
     ])
 
-    trainset = datasets.CIFAR10(args.data_root, train=True, transform=transform_train)
-    validset = datasets.CIFAR10(args.data_root, train=True, transform=transform_eval)
-    testset = datasets.CIFAR10(args.data_root, train=False, transform=transform_eval)
+    if args.dataset == "cifar10":
+        trainset = datasets.CIFAR10(args.data_root, train=True, transform=transform_train)
+        validset = datasets.CIFAR10(args.data_root, train=True, transform=transform_eval)
+        testset = datasets.CIFAR10(args.data_root, train=False, transform=transform_eval)
+    elif args.dataset == "cifar100":
+        trainset = datasets.CIFAR100(args.data_root, train=True, transform=transform_train)
+        validset = datasets.CIFAR100(args.data_root, train=True, transform=transform_eval)
+        testset = datasets.CIFAR100(args.data_root, train=False, transform=transform_eval)
+    else:
+        raise NotImplementedError
 
     train_sampler, valid_sampler = get_train_valid_sampler(args, trainset)
 

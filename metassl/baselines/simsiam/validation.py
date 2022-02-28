@@ -15,48 +15,106 @@ class KNNValidation(object):
         self.args = args
         self.K = K
 
+        # Normalization
+        normalize_cifar10 = transforms.Normalize(
+            mean=[0.4914, 0.4822, 0.4465],
+            std=[0.2023, 0.1994, 0.2010]
+        )
+
+        normalize_cifar100 = transforms.Normalize(
+            mean=(0.5071, 0.4865, 0.4409),
+            std=(0.2673, 0.2564, 0.2762)
+        )
+        if args.dataset == "cifar10":
+            normalize = normalize_cifar10
+        elif args.dataset == "cifar100":
+            normalize = normalize_cifar100
+        else:
+            raise NotImplementedError
+
         base_transforms = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+            normalize,
         ])
 
-        train_dataset = datasets.CIFAR10(root=args.data_root,
-                                         train=True,
-                                         download=True,
-                                         transform=base_transforms)
-        train_sampler, valid_sampler = get_train_valid_sampler(args, train_dataset)
-        self.train_dataloader = DataLoader(train_dataset,
-                                           batch_size=args.pt_batch_size,
-                                           shuffle=False,
-                                           sampler=train_sampler,
-                                           num_workers=args.num_workers,
-                                           pin_memory=True,
-                                           drop_last=True)
-        if np.isclose(args.valid_size, 0.0):
-            test_dataset = datasets.CIFAR10(root=args.data_root,
-                                           train=False,
-                                           download=True,
-                                           transform=base_transforms)
-
-            self.eval_dataloader = DataLoader(test_dataset,
-                                             batch_size=args.pt_batch_size,
-                                             shuffle=False,
-                                             num_workers=args.num_workers,
-                                             pin_memory=True,
-                                             drop_last=True)
-        else:
-            valid_dataset = datasets.CIFAR10(root=args.data_root,
-                                            train=True,
-                                            download=True,
-                                            transform=base_transforms)
-
-            self.eval_dataloader = DataLoader(valid_dataset,
+        if args.dataset == "cifar10":
+            train_dataset = datasets.CIFAR10(root=args.data_root,
+                                             train=True,
+                                             download=True,
+                                             transform=base_transforms)
+            train_sampler, valid_sampler = get_train_valid_sampler(args, train_dataset)
+            self.train_dataloader = DataLoader(train_dataset,
                                                batch_size=args.pt_batch_size,
                                                shuffle=False,
-                                               sampler=valid_sampler,
+                                               sampler=train_sampler,
                                                num_workers=args.num_workers,
                                                pin_memory=True,
                                                drop_last=True)
+            if np.isclose(args.valid_size, 0.0):
+                test_dataset = datasets.CIFAR10(root=args.data_root,
+                                               train=False,
+                                               download=True,
+                                               transform=base_transforms)
+
+                self.eval_dataloader = DataLoader(test_dataset,
+                                                 batch_size=args.pt_batch_size,
+                                                 shuffle=False,
+                                                 num_workers=args.num_workers,
+                                                 pin_memory=True,
+                                                 drop_last=True)
+            else:
+                valid_dataset = datasets.CIFAR10(root=args.data_root,
+                                                train=True,
+                                                download=True,
+                                                transform=base_transforms)
+
+                self.eval_dataloader = DataLoader(valid_dataset,
+                                                   batch_size=args.pt_batch_size,
+                                                   shuffle=False,
+                                                   sampler=valid_sampler,
+                                                   num_workers=args.num_workers,
+                                                   pin_memory=True,
+                                                   drop_last=True)
+        elif args.dataset == "cifar100":
+            train_dataset = datasets.CIFAR100(root=args.data_root,
+                                             train=True,
+                                             download=True,
+                                             transform=base_transforms)
+            train_sampler, valid_sampler = get_train_valid_sampler(args, train_dataset)
+            self.train_dataloader = DataLoader(train_dataset,
+                                               batch_size=args.pt_batch_size,
+                                               shuffle=False,
+                                               sampler=train_sampler,
+                                               num_workers=args.num_workers,
+                                               pin_memory=True,
+                                               drop_last=True)
+            if np.isclose(args.valid_size, 0.0):
+                test_dataset = datasets.CIFAR100(root=args.data_root,
+                                                train=False,
+                                                download=True,
+                                                transform=base_transforms)
+
+                self.eval_dataloader = DataLoader(test_dataset,
+                                                  batch_size=args.pt_batch_size,
+                                                  shuffle=False,
+                                                  num_workers=args.num_workers,
+                                                  pin_memory=True,
+                                                  drop_last=True)
+            else:
+                valid_dataset = datasets.CIFAR100(root=args.data_root,
+                                                 train=True,
+                                                 download=True,
+                                                 transform=base_transforms)
+
+                self.eval_dataloader = DataLoader(valid_dataset,
+                                                  batch_size=args.pt_batch_size,
+                                                  shuffle=False,
+                                                  sampler=valid_sampler,
+                                                  num_workers=args.num_workers,
+                                                  pin_memory=True,
+                                                  drop_last=True)
+        else:
+            raise NotImplementedError
 
     def _topk_retrieval(self):
         """Extract features from validation split and search on train split features."""

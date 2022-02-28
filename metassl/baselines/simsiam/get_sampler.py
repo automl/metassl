@@ -8,7 +8,7 @@ def get_train_valid_sampler(args, trainset):
     # generator = torch.Generator()
     # generator.manual_seed(0)
 
-    dataset_percentage_usage = 100  # TODO: Add flag for this
+    dataset_percentage_usage = args.dataset_percentage_usage
     num_train = int(len(trainset) / 100 * dataset_percentage_usage)
     indices = list(range(num_train))
     split = int(np.floor(args.valid_size * num_train))
