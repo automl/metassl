@@ -2,6 +2,24 @@
 @list:
   just --list
 
+
+# ---------------------------------------------------------------------------------------
+# BASELINES - SIMSIAM ON CIFAR100
+# ---------------------------------------------------------------------------------------
+
+# Submit Baseline for SimSiam on CIFAR100
+@c100_baseline EXPERIMENT_NAME:
+  #!/usr/bin/env bash
+  mkdir -p /work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR100/{{EXPERIMENT_NAME}}/cluster_oe/
+  sbatch --exclude=dlcgpu14 --output=/work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR100/{{EXPERIMENT_NAME}}/cluster_oe/%x.%N.%j.err_out --error=/work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR100/{{EXPERIMENT_NAME}}/cluster_oe/%x.%N.%j.err_out --export=EXPERIMENT_NAME={{EXPERIMENT_NAME}} cluster/submit_baseline_sequential_simsiam_cifar100.sh
+
+# Submit workspace (baseline) experiment with SimSiam on CIFAR100
+@c100_workspace EXPERIMENT_NAME:
+  #!/usr/bin/env bash
+  mkdir -p /work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR100/{{EXPERIMENT_NAME}}/cluster_oe/
+  sbatch --exclude=dlcgpu14,dlcgpu20,dlcgpu21 --output=/work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR100/{{EXPERIMENT_NAME}}/cluster_oe/%x.%N.%j.err_out --error=/work/dlclarge2/wagnerd-metassl-experiments/CIFAR100/{{EXPERIMENT_NAME}}/cluster_oe/%x.%N.%j.err_out --export=EXPERIMENT_NAME={{EXPERIMENT_NAME}} cluster/submit_workspace_sequential_simsiam_cifar100.sh
+
+
 # ---------------------------------------------------------------------------------------
 # BASELINES - SIMSIAM ON CIFAR10
 # ---------------------------------------------------------------------------------------
