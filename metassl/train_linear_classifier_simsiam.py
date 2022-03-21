@@ -540,7 +540,7 @@ def train_one_epoch(
 
         get_gradients = False if config.expt.is_non_grad_based else True  # default is True
 
-        loss_ft, backbone_grads_ft_lw, backbone_grads_ft_global = finetune(model, images, target, criterion_ft, optimizer_ft, losses_ft_meter, top1_meter, top5_meter, get_gradients=get_gradients)
+        loss_ft, backbone_grads_ft_lw, backbone_grads_ft_global = finetune(model, images, target, criterion_ft, optimizer_ft, losses_ft_meter, top1_meter, top5_meter, config, get_gradients=get_gradients)
 
         mean, std = calc_layer_wise_stats(backbone_grads_pt=backbone_grads_ft_lw, backbone_grads_ft=None, metric_type="norm")
         norm_ft_avg_meter_lw.update(mean), norm_ft_std_meter_lw.update(std)
@@ -578,7 +578,7 @@ def train_one_epoch(
     return total_iter
 
 
-def finetune(model, images_ft, target_ft, criterion_ft, optimizer_ft, losses_ft_meter, top1_meter, top5_meter, get_gradients=False):
+def finetune(model, images_ft, target_ft, criterion_ft, optimizer_ft, losses_ft_meter, top1_meter, top5_meter, config, get_gradients=False):
     backbone_grads_lw = OrderedDict()
     backbone_grads_global = torch.Tensor().cuda()
     

@@ -125,3 +125,4 @@ learnaug:
 neps:
   is_neps_run:    False                         # Set this flag to run a NEPS experiment.
   config_space:   'parameterized_cifar10_augmentation'  # Define which configspace to use. choices=['parameterized_cifar10_augmentation', 'probability_augment']
+  is_user_prior:  False                         # Set this flag to run a NEPS experiment with user prior

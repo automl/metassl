@@ -32,7 +32,7 @@ import torchvision.models as models
 from jsonargparse import ArgumentParser
 from torch.utils.tensorboard import SummaryWriter
 
-from metassl.hyperparameter_optimization.configspaces import get_parameterized_cifar10_augmentation_configspace
+from metassl.hyperparameter_optimization.configspaces import get_parameterized_cifar10_augmentation_configspace, get_parameterized_cifar10_augmentation_with_solarize_configspace, get_parameterized_cifar10_augmentation_with_solarize_configspace_with_user_prior
 from metassl.utils.criterion import SimSiamLoss
 
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -155,8 +155,12 @@ def main(working_directory, config, bohb_infos=None, **hyperparameters):
         mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperparameters))
     else:
         # Simply call main_worker function
-        main_worker(config.expt.gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperparameters)
-    
+        try:
+            main_worker(config.expt.gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperparameters)
+        except KeyError as e:
+            print("\n\n RETURN 0 \n\n", e)
+            return 0
+
     # BOHB only --------------------------------------------------------------------------------------------------------
     # Read validation metric from the .txt (as for mp.spawn returning values is not trivial)
     if bohb_infos is not None:
@@ -694,8 +698,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--neps', default="neps", type=str, metavar='NEPS')
     parser.add_argument('--neps.is_neps_run', action='store_true', help='Set this flag to run a NEPS experiment.')
-    parser.add_argument('--neps.config_space', type=str, default='parameterized_cifar10_augmentation', choices=['parameterized_cifar10_augmentation', 'probability_augment'], help='Define which configspace to use.')
-
+    parser.add_argument('--neps.config_space', type=str, default='parameterized_cifar10_augmentation_with_solarize', choices=['parameterized_cifar10_augmentation', 'parameterized_cifar10_augmentation_with_solarize', 'probability_augment'], help='Define which configspace to use.')
+    parser.add_argument('--neps.is_user_prior', action='store_true', help='Set this flag to run a NEPS experiment with user prior.')
     parser.add_argument('--learnaug', default="learnaug", type=str, metavar='N')
     parser.add_argument('--learnaug.type', default="default", choices=["colorjitter", "default", "full_net"], help='Define which type of learned augmentation to use.')
 
@@ -723,10 +727,15 @@ if __name__ == '__main__':
 
     if config.neps.is_neps_run:
         import neps
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-8s [%(name)s] %(message)s")
         # pipeline_space = dict(learning_rate=neps.FloatParameter(lower=0, upper=1))
         if config.neps.config_space == 'parameterized_cifar10_augmentation':
             pipeline_space = get_parameterized_cifar10_augmentation_configspace()
+        elif config.neps.config_space == 'parameterized_cifar10_augmentation_with_solarize':
+            if config.neps.is_user_prior:
+                pipeline_space = get_parameterized_cifar10_augmentation_with_solarize_configspace_with_user_prior()
+            else:
+                pipeline_space = get_parameterized_cifar10_augmentation_with_solarize_configspace()
         else:
             raise NotImplementedError
         from functools import partial

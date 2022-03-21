@@ -335,6 +335,19 @@ def get_train_valid_transforms(config, dataset_name, use_fix_aug_params, bohb_in
             p_colorjitter = neps_hyperparameters["p_colorjitter"]
             p_grayscale = neps_hyperparameters["p_grayscale"]
             p_horizontal_flip = neps_hyperparameters["p_horizontal_flip"]
+
+            # Strengths and Thresholds
+            brightness_strength = neps_hyperparameters["brightness_strength"]
+            contrast_strength = neps_hyperparameters["contrast_strength"]
+            saturation_strength = neps_hyperparameters["saturation_strength"]
+            hue_strength = neps_hyperparameters["hue_strength"]
+
+        elif config.neps.config_space == "parameterized_cifar10_augmentation_with_solarize" and neps_hyperparameters is not None:
+            print(f"Hyperparameters: {neps_hyperparameters}")
+            # Probabilities
+            p_colorjitter = neps_hyperparameters["p_colorjitter"]
+            p_grayscale = neps_hyperparameters["p_grayscale"]
+            p_horizontal_flip = neps_hyperparameters["p_horizontal_flip"]
             p_solarize = neps_hyperparameters["p_solarize"]
 
             # Strengths and Thresholds
@@ -343,7 +356,6 @@ def get_train_valid_transforms(config, dataset_name, use_fix_aug_params, bohb_in
             saturation_strength = neps_hyperparameters["saturation_strength"]
             hue_strength = neps_hyperparameters["hue_strength"]
             solarize_threshold = neps_hyperparameters["solarize_threshold"]
-
     # ------------------------------------------------------------------------------------------------------------------
 
     # For testing
