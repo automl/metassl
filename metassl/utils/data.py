@@ -13,7 +13,6 @@ from metassl.utils.imagenet import ImageNet
 from .simsiam import GaussianBlur, TwoCropsTransform
 from .torch_utils import DistributedSampler
 
-datasets
 
 normalize_imagenet = transforms.Normalize(
     mean=[0.485, 0.456, 0.406],
@@ -32,6 +31,8 @@ normalize_cifar100 = transforms.Normalize(
 
 
 def get_train_valid_loader(
+    config,
+    neps_hyperparameters,
     batch_size,
     random_seed,
     valid_size=0.1,
@@ -50,7 +51,6 @@ def get_train_valid_loader(
     use_fix_aug_params=False,
     data_augmentation_mode='default',
     finetuning_data_augmentation='none',
-
     ):
     """
     Utility function for loading and returning train and valid
@@ -93,7 +93,7 @@ def get_train_valid_loader(
     if data_augmentation_mode == 'default':
         # default SimSiam Stuff + Fabio Stuff
         # TODO @Fabio/Diane - generate specific mode for Fabio stuff
-        train_transform, valid_transform = get_train_valid_transforms(dataset_name, use_fix_aug_params, bohb_infos, get_fine_tuning_loaders, parameterize_augmentation)
+        train_transform, valid_transform = get_train_valid_transforms(config, dataset_name, use_fix_aug_params, bohb_infos, get_fine_tuning_loaders, parameterize_augmentation, neps_hyperparameters)
     elif data_augmentation_mode == 'probability_augment':
         from .probability_augment import probability_augment
         train_transform, valid_transform = probability_augment(dataset_name, get_fine_tuning_loaders, bohb_infos, use_fix_aug_params, finetuning_data_augmentation)
@@ -225,6 +225,8 @@ def get_test_loader(
     if dataset_name == "CIFAR10":
         transform = transforms.Compose(
             [
+                transforms.Resize(int(32 * (8 / 7)), interpolation=Image.BICUBIC),
+                transforms.CenterCrop(32),
                 transforms.ToTensor(),
                 normalize_cifar10,
             ]
@@ -233,6 +235,8 @@ def get_test_loader(
     elif dataset_name == "CIFAR100":
         transform = transforms.Compose(
             [
+                transforms.Resize(int(32 * (8 / 7)), interpolation=Image.BICUBIC),
+                transforms.CenterCrop(32),
                 transforms.ToTensor(),
                 normalize_cifar100,
             ]
@@ -242,7 +246,7 @@ def get_test_loader(
 
         transform = transforms.Compose(
             [
-                transforms.Resize(256),
+                transforms.Resize(256, interpolation=Image.BICUBIC),
                 transforms.CenterCrop(224),
                 transforms.ToTensor(),
                 normalize_imagenet,
@@ -280,7 +284,7 @@ def get_test_loader(
     return data_loader
 
 
-def get_train_valid_transforms(dataset_name, use_fix_aug_params, bohb_infos, get_fine_tuning_loaders, parameterize_augmentation):
+def get_train_valid_transforms(config, dataset_name, use_fix_aug_params, bohb_infos, get_fine_tuning_loaders, parameterize_augmentation, neps_hyperparameters):
     # ------------------------------------------------------------------------------------------------------------------
     # Specify data augmentation hyperparameters for the pretraining part
     # ------------------------------------------------------------------------------------------------------------------
@@ -289,20 +293,26 @@ def get_train_valid_transforms(dataset_name, use_fix_aug_params, bohb_infos, get
     p_colorjitter = 0.8
     p_grayscale = 0.2
     p_gaussianblur = 0.5 if dataset_name == 'ImageNet' else 0
+    p_horizontal_flip = 0.5
+    p_solarize = 0
     brightness_strength = 0.4
     contrast_strength = 0.4
     saturation_strength = 0.4
     hue_strength = 0.1
+    solarize_threshold = 255
+
     if use_fix_aug_params:
         # You can overwrite parameters here if you want to try out a specific setting.
         # Due to the flag, default experiments won't be affected by this.
-        p_colorjitter = 0.8
-        p_grayscale = 0.2
+        p_colorjitter = 0.32011207176587564
+        p_grayscale = 0.13152910682197913
+        p_solarize = 0.38645378707287636
+        solarize_threshold = 121
         p_gaussianblur = 0.5 if dataset_name == 'ImageNet' else 0
-        brightness_strength = 1.1592547258007664
-        contrast_strength = 1.160211615089221
-        saturation_strength = 0.9843846879329252
-        hue_strength = 0.19030216963226004
+        brightness_strength = 0.5918737491981877
+        contrast_strength = 1.1513307570530626
+        saturation_strength = 0.01767797917203415
+        hue_strength = 0.08749582439198282
 
     # BOHB - probability augment configspace
     if bohb_infos is not None and bohb_infos['bohb_configspace'].endswith('probability_simsiam_augment'):
@@ -317,14 +327,48 @@ def get_train_valid_transforms(dataset_name, use_fix_aug_params, bohb_infos, get
         saturation_strength = bohb_infos['bohb_config']['saturation_strength']
         hue_strength = bohb_infos['bohb_config']['hue_strength']
 
+    # NEPS only --------------------------------------------------------------------------------------------------------
+    if config.neps.is_neps_run:
+        if config.neps.config_space == "parameterized_cifar10_augmentation" and neps_hyperparameters is not None:
+            print(f"Hyperparameters: {neps_hyperparameters}")
+            # Probabilities
+            p_colorjitter = neps_hyperparameters["p_colorjitter"]
+            p_grayscale = neps_hyperparameters["p_grayscale"]
+            p_horizontal_flip = neps_hyperparameters["p_horizontal_flip"]
+
+            # Strengths and Thresholds
+            brightness_strength = neps_hyperparameters["brightness_strength"]
+            contrast_strength = neps_hyperparameters["contrast_strength"]
+            saturation_strength = neps_hyperparameters["saturation_strength"]
+            hue_strength = neps_hyperparameters["hue_strength"]
+
+        elif config.neps.config_space == "parameterized_cifar10_augmentation_with_solarize" and neps_hyperparameters is not None:
+            print(f"Hyperparameters: {neps_hyperparameters}")
+            # Probabilities
+            p_colorjitter = neps_hyperparameters["p_colorjitter"]
+            p_grayscale = neps_hyperparameters["p_grayscale"]
+            p_horizontal_flip = neps_hyperparameters["p_horizontal_flip"]
+            p_solarize = neps_hyperparameters["p_solarize"]
+
+            # Strengths and Thresholds
+            brightness_strength = neps_hyperparameters["brightness_strength"]
+            contrast_strength = neps_hyperparameters["contrast_strength"]
+            saturation_strength = neps_hyperparameters["saturation_strength"]
+            hue_strength = neps_hyperparameters["hue_strength"]
+            solarize_threshold = neps_hyperparameters["solarize_threshold"]
+    # ------------------------------------------------------------------------------------------------------------------
+
     # For testing
-    # print(f"{p_colorjitter=}")
-    # print(f"{p_grayscale=}")
-    # print(f"{p_gaussianblur=}")
-    # print(f"{brightness_strength=}")
-    # print(f"{contrast_strength=}")
-    # print(f"{saturation_strength=}")
-    # print(f"{hue_strength=}")
+    print(f"p_colorjitter: {p_colorjitter}")
+    print(f"p_grayscale: {p_grayscale}")
+    print(f"p_gaussianblur: {p_gaussianblur}")
+    print(f"p_horizontal_flip: {p_horizontal_flip}")
+    print(f"p_solarize: {p_solarize}")
+    print(f"brightness_strength: {brightness_strength}")
+    print(f"contrast_strength: {contrast_strength}")
+    print(f"saturation_strength: {saturation_strength}")
+    print(f"hue_strength: {hue_strength}")
+    print(f"solarize_threshold: {solarize_threshold}")
     # ------------------------------------------------------------------------------------------------------------------
 
     if dataset_name == "CIFAR10":
@@ -339,10 +383,11 @@ def get_train_valid_transforms(dataset_name, use_fix_aug_params, bohb_infos, get
                 train_transform = TwoCropsTransform(
                     transforms.Compose(
                         [
-                            transforms.RandomResizedCrop(size=32, scale=(0.2, 1.)),
+                            transforms.RandomResizedCrop(size=32, scale=(0.2, 1.), interpolation=Image.BICUBIC),
                             transforms.RandomApply([transforms.ColorJitter(brightness=brightness_strength, contrast=contrast_strength, saturation=saturation_strength, hue=hue_strength)], p=p_colorjitter),
                             transforms.RandomGrayscale(p=p_grayscale),
-                            transforms.RandomHorizontalFlip(),
+                            transforms.RandomHorizontalFlip(p_horizontal_flip),
+                            transforms.RandomSolarize(threshold=solarize_threshold, p=p_solarize),
                             transforms.ToTensor(),
                             normalize_cifar10,
                             ]
@@ -351,6 +396,8 @@ def get_train_valid_transforms(dataset_name, use_fix_aug_params, bohb_infos, get
 
             valid_transform = TwoCropsTransform(
                 transforms.Compose([
+                    transforms.Resize(int(32 * (8 / 7)), interpolation=Image.BICUBIC),
+                    transforms.CenterCrop(32),
                     transforms.ToTensor(),
                     normalize_cifar10,
                     ]
@@ -358,12 +405,19 @@ def get_train_valid_transforms(dataset_name, use_fix_aug_params, bohb_infos, get
             )
         else:  # TODO: Check out which data augmentations are being used here!
             train_transform = transforms.Compose([
+                    # transforms.RandomResizedCrop(32, scale=(0.8, 1.0),
+                    #                              ratio=(3.0 / 4.0, 4.0 / 3.0),
+                    #                              interpolation=Image.BICUBIC),
+                    transforms.RandomResizedCrop(size=32, scale=(0.2, 1.), interpolation=Image.BICUBIC),
+                    transforms.RandomHorizontalFlip(),
                     transforms.ToTensor(),
                     normalize_cifar10,
                 ]
             )
 
             valid_transform = transforms.Compose([
+                    transforms.Resize(int(32 * (8 / 7)), interpolation=Image.BICUBIC),
+                    transforms.CenterCrop(32),
                     transforms.ToTensor(),
                     normalize_cifar10,
                 ]
@@ -392,18 +446,19 @@ def get_train_valid_transforms(dataset_name, use_fix_aug_params, bohb_infos, get
             if parameterize_augmentation:
                 # rest is done outside
                 train_transform = transforms.Compose([
-                    transforms.RandomResizedCrop(224, scale=(0.2, 1.)),
+                    transforms.RandomResizedCrop(224, scale=(0.2, 1.), interpolation=Image.BICUBIC),
                     transforms.ToTensor(),
                     ])
             else:
                 train_transform = TwoCropsTransform(
                     transforms.Compose(
                         [
-                            transforms.RandomResizedCrop(224, scale=(0.2, 1.)),
+                            transforms.RandomResizedCrop(224, scale=(0.2, 1.), interpolation=Image.BICUBIC),
                             transforms.RandomApply([transforms.ColorJitter(brightness=brightness_strength, contrast=contrast_strength, saturation=saturation_strength, hue=hue_strength)], p=p_colorjitter),
                             transforms.RandomGrayscale(p=p_grayscale),
                             transforms.RandomApply([GaussianBlur([.1, 2.])], p=p_gaussianblur),
                             transforms.RandomHorizontalFlip(),
+                            transforms.RandomSolarize(threshold=solarize_threshold, p=p_solarize),
                             transforms.ToTensor(),
                             normalize_imagenet
                             ]
@@ -422,7 +477,7 @@ def get_train_valid_transforms(dataset_name, use_fix_aug_params, bohb_infos, get
                 )
         else:
             train_transform = transforms.Compose([
-                                transforms.RandomResizedCrop(224),
+                                transforms.RandomResizedCrop(224, interpolation=Image.BICUBIC),
                                 transforms.RandomHorizontalFlip(),
                                 transforms.ToTensor(),
                                 normalize_imagenet,
@@ -443,11 +498,13 @@ def get_train_valid_transforms(dataset_name, use_fix_aug_params, bohb_infos, get
     return train_transform, valid_transform
 
 
-def get_loaders(config, parameterize_augmentation=False, bohb_infos=None, download=False):
+def get_loaders(config, parameterize_augmentation=False, bohb_infos=None, download=False, neps_hyperparameters=None):
     train_loader_pt, _, train_sampler_pt, _ = get_train_valid_loader(
+        config=config,
+        neps_hyperparameters=neps_hyperparameters,
         batch_size=config.train.batch_size,
         random_seed=config.expt.seed,
-        valid_size=0.0,
+        valid_size=config.finetuning.valid_size,
         dataset_name=config.data.dataset,
         shuffle=True,
         num_workers=config.expt.workers,
@@ -465,6 +522,8 @@ def get_loaders(config, parameterize_augmentation=False, bohb_infos=None, downlo
         )
     
     train_loader_ft, valid_loader_ft, train_sampler_ft, _ = get_train_valid_loader(
+        config=config,
+        neps_hyperparameters=neps_hyperparameters,
         batch_size=config.finetuning.batch_size,
         random_seed=config.expt.seed,
         valid_size=config.finetuning.valid_size,

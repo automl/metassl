@@ -1,3 +1,5 @@
+import copy
+
 import jsonargparse
 import yaml
 
@@ -18,6 +20,11 @@ class AttrDict(dict):
         
         for key in self.keys():
             self[key] = from_nested_dict(self[key])
+
+    def __deepcopy__(self, memo):
+        return self.__class__(
+            {k: copy.deepcopy(v, memo) for k, v in self.items()}
+        )
 
 
 def _parse_args(config_parser, parser):
@@ -67,6 +74,6 @@ def print_missing_params_in_yaml(key, value, cfg):
         for keylow, _ in value.items():
             try:
                 if keylow not in cfg[key]:
-                    print(f"{key=},{keylow=}")
+                    print(f"key: {key}, keylow: {keylow}")
             except:
                 pass

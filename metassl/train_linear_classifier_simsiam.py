@@ -13,6 +13,7 @@ import time
 import warnings
 from collections import OrderedDict
 import math
+import numpy as np
 
 import jsonargparse
 import torch
@@ -59,7 +60,8 @@ model_names = sorted(
     )
 
 
-def main(config, expt_dir, bohb_infos=None):
+def main(config, expt_dir, bohb_infos=None, hyperparameters=None):
+    print("\n\n\nFINETUNING\n\n\n")
     # BOHB only --------------------------------------------------------------------------------------------------------
     if bohb_infos is not None:
         # Integrate budget based on budget_mode
@@ -88,21 +90,14 @@ def main(config, expt_dir, bohb_infos=None):
         # config.expt.dist_url = "tcp://localhost:" + master_port
         # print(f"{config.expt.dist_url=}")
         
-        print(f"\n\n\n\n\n\n{bohb_infos=}\n\n\n\n\n\n")
+        print(f"\n\n\n\n\n\nbohb_infos: {bohb_infos}\n\n\n\n\n\n")
     # ------------------------------------------------------------------------------------------------------------------
-
-    if config.data.dataset == "CIFAR10":
-        # Define master port (for preventing 'Address already in use error' when submitting more than 1 jobs on 1 node)
-        # Code from: https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number
-        master_port = find_free_port()
-        config.expt.dist_url = "tcp://localhost:" + str(master_port)
-        # if this should still fail: do it via filesystem initialization
-        # https://pytorch.org/docs/stable/distributed.html#shared-file-system-initialization
 
     if config.expt.seed is not None:
         random.seed(config.expt.seed)
         torch.manual_seed(config.expt.seed)
-        cudnn.deterministic = True
+        np.random.seed(config.expt.seed)
+        cudnn.deterministic = True  # TODO: @Diane - checkout
         warnings.warn(
             'You have chosen to seed training. '
             'This will turn on the CUDNN deterministic setting, '
@@ -121,6 +116,14 @@ def main(config, expt_dir, bohb_infos=None):
         config.expt.world_size = int(os.environ["WORLD_SIZE"])
     
     config.expt.distributed = config.expt.world_size > 1 or config.expt.multiprocessing_distributed
+
+    if config.data.dataset == "CIFAR10" and config.expt.distributed:
+        # Define master port (for preventing 'Address already in use error' when submitting more than 1 jobs on 1 node)
+        # Code from: https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number
+        master_port = find_free_port()
+        config.expt.dist_url = "tcp://localhost:" + str(master_port)
+        # if this should still fail: do it via filesystem initialization
+        # https://pytorch.org/docs/stable/distributed.html#shared-file-system-initialization
     
     ngpus_per_node = torch.cuda.device_count()
     if config.expt.multiprocessing_distributed:
@@ -129,22 +132,29 @@ def main(config, expt_dir, bohb_infos=None):
         config.expt.world_size = ngpus_per_node * config.expt.world_size
         # Use torch.multiprocessing.spawn to launch distributed processes: the
         # main_worker process function
-        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, config, expt_dir, bohb_infos))
+        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, config, expt_dir, bohb_infos, hyperparameters))
     else:
         # Simply call main_worker function
-        main_worker(config.expt.gpu, ngpus_per_node, config, expt_dir, bohb_infos)
+        main_worker(config.expt.gpu, ngpus_per_node, config, expt_dir, bohb_infos, hyperparameters)
     
     # BOHB only --------------------------------------------------------------------------------------------------------
     # Read validation metric from the .txt (as for mp.spawn returning values is not trivial)
     if bohb_infos is not None:
         with open(expt_dir + "/current_val_metric.txt", 'r') as f:
             val_metric = f.read()
-        print(f"{val_metric=}")
+        print(f"val_metric: {val_metric}")
+        return float(val_metric)
+    # ------------------------------------------------------------------------------------------------------------------
+    # NEPS only --------------------------------------------------------------------------------------------------------
+    # Read validation metric from the .txt (as for mp.spawn returning values is not trivial)
+    if hyperparameters is not None:
+        with open(str(expt_dir) + "/current_val_metric.txt", 'r') as f:
+            val_metric = f.read()
+        print(f"val_metric: {val_metric}")
         return float(val_metric)
     # ------------------------------------------------------------------------------------------------------------------
 
-
-def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
+def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, hyperparameters):
     config.expt.gpu = gpu
 
     # suppress printing if not master
@@ -168,12 +178,38 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
             backend=config.expt.dist_backend, init_method=config.expt.dist_url,
             world_size=config.expt.world_size, rank=config.expt.rank
             )
-        torch.distributed.barrier()
+        torch.distributed.barrier()  # TODO: @Fabio?
+
     # create model
-    if config.data.dataset == 'CIFAR10':
-        # Use model from our model folder instead from torchvision!
-        print(f"=> creating model resnet18")
-        model = SimSiam(our_cifar_resnets.resnet18, config.simsiam.dim, config.simsiam.pred_dim, num_classes=10)
+    # TODO: @Diane - Check out and compare against baseline code
+    if config.data.dataset == "CIFAR10":
+        if config.model.arch == "tv_resnet":
+            print(f"=> creating model {config.model.model_type}")
+            model = SimSiam(models.__dict__[config.model.model_type], config.simsiam.dim, config.simsiam.pred_dim, num_classes=10)
+        elif config.model.arch == "our_resnet":
+            # Use model from our model folder instead from torchvision!
+            print(f"=> creating model resnet18")
+            model = SimSiam(our_cifar_resnets.resnet18, config.simsiam.dim, config.simsiam.pred_dim, num_classes=10)
+        elif config.model.arch == "baseline_resnet":
+            from metassl.utils.resnet_cifar import ResNet18, ResNet34, ResNet50, ResNet101, ResNet152
+            def get_backbone(backbone_name, num_cls=10):
+                models = {'resnet18': ResNet18(low_dim=num_cls),
+                          'resnet34': ResNet34(low_dim=num_cls),
+                          'resnet50': ResNet50(low_dim=num_cls),
+                          'resnet101': ResNet101(low_dim=num_cls),
+                          'resnet152': ResNet152(low_dim=num_cls)}
+                return models[backbone_name]
+            model = get_backbone('resnet18')
+
+            # freeze all layers but the last fc
+            for name, param in model.named_parameters():
+                if name not in ['fc.weight', 'fc.bias']:
+                    param.requires_grad = False
+            # init the fc layer
+            model.fc.weight.data.normal_(mean=0.0, std=0.01)
+            model.fc.bias.data.zero_()
+        else:
+            raise NotImplementedError
     else:
         print(f"=> creating model '{config.model.model_type}'")
         model = SimSiam(models.__dict__[config.model.model_type], config.simsiam.dim, config.simsiam.pred_dim, num_classes=1000)
@@ -182,12 +218,49 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
         print("Turning off BatchNorm in entire model.")
         deactivate_bn(model)
         model.encoder_head[6].bias.requires_grad = True
-    
-    # infer learning rate before changing batch size
+
+    # Baseline Code ----------------------------------------------------------------------------------------------------
+    if config.data.dataset == "CIFAR10" and config.model.arch == "baseline_resnet":
+        # TODO: @Diane - fix hardcoding
+        if config.neps.is_neps_run:
+            print("expt_dir: ", expt_dir)
+            pt_epoch_ckpt = str(config.train.epochs - 1).zfill(4)
+            print("pt_epoch_ckpt: ", pt_epoch_ckpt)
+            ckpt = "checkpoint_" + pt_epoch_ckpt + ".pth.tar"
+            print("ckpt: ", ckpt)
+            pretrained = expt_dir / ckpt
+            print("pretrained: ", pretrained)
+        else:
+            pretrained = config.expt.target_model_checkpoint_path
+        if True:
+            if os.path.isfile(pretrained):
+                print("=> loading checkpoint '{}'".format(pretrained))
+                checkpoint = torch.load(pretrained, map_location="cpu")
+                state_dict = checkpoint['state_dict']
+
+                new_state_dict = dict()
+                for old_key, value in state_dict.items():
+                    if old_key.startswith('module'):
+                        old_key = old_key[len('module.'):]
+                    if old_key.startswith('backbone') and 'fc' not in old_key:
+                        new_key = old_key.replace('backbone.', '')
+                        new_state_dict[new_key] = value
+
+                start_epoch = 0
+                msg = model.load_state_dict(new_state_dict, strict=False)
+                assert set(msg.missing_keys) == {"fc.weight", "fc.bias"}
+
+                print("=> loaded pre-trained model '{}'".format(pretrained))
+            else:
+                print("=> no checkpoint found at '{}'".format(pretrained))
+    # ------------------------------------------------------------------------------------------------------------------
+
+    # infer learning rate !before changing batch size! > see lines below
+    # TODO: @Fabio - keep for CIFAR10? (metassl code); lr_b = 0.06, lr_m = 0.03 * 512 / 256 = 0.06 also
     init_lr_ft = config.finetuning.lr * config.finetuning.batch_size / 256
 
     if config.expt.distributed:
-        # Apply SyncBN
+        # Apply SyncBN TODO: @Fabio - keep for CIFAR10? (metassl code)
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
         # For multiprocessing distributed, DistributedDataParallel constructor
         # should always set the single device scope, otherwise,
@@ -203,7 +276,7 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
             model = torch.nn.parallel.DistributedDataParallel(
                 model,
                 device_ids=[config.expt.gpu],
-                find_unused_parameters=True
+                find_unused_parameters=True  # TODO: @Fabio - keep for CIFAR10? (metassl code)
                 )
         else:
             model.cuda()
@@ -213,60 +286,90 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
     elif config.expt.gpu is not None:
         torch.cuda.set_device(config.expt.gpu)
         model = model.cuda(config.expt.gpu)
-        # comment out the following line for debugging
-        raise NotImplementedError("Only DistributedDataParallel is supported.")
+        # comment out the following line for debugging  # TODO: delete? (metassl code)
+        # raise NotImplementedError("Only DistributedDataParallel or gpu mode is supported.")  # TODO: delete (metassl code)
     else:
+        # DataParallel will divide and allocate batch_size to all available GPUs
+        model = torch.nn.DataParallel(model).cuda()
+        # TODO: Integrate lines below? (baselines code)
+        # if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
+        #     model.features = torch.nn.DataParallel(model.features)
+        #     model.cuda()
+        # else:
+        #     model = torch.nn.DataParallel(model).cuda()
+
+        # TODO: delete? (metassl code)
         # AllGather implementation (batch shuffle, queue update, etc.) in
         # this code only supports DistributedDataParallel.
-        raise NotImplementedError("Only DistributedDataParallel is supported.")
+        # raise NotImplementedError("Only DistributedDataParallel is supported.")
     
     # define loss function (criterion) and optimizer
     criterion_ft = nn.CrossEntropyLoss().cuda(config.expt.gpu)
 
-    optimizer_ft = torch.optim.SGD(
-        params=model.module.classifier_head.parameters(),
-        lr=init_lr_ft,
-        momentum=config.finetuning.momentum,
-        weight_decay=config.finetuning.weight_decay
+    # Baseline Code ----------------------------------------------------------------------------------------------------
+    if config.data.dataset == "CIFAR10" and config.model.arch == "baseline_resnet":
+        parameters = list(filter(lambda p: p.requires_grad, model.parameters()))
+        assert len(parameters) == 2  # fc.weight, fc.bias
+    # ------------------------------------------------------------------------------------------------------------------
+
+    if config.data.dataset == "CIFAR10" and config.model.arch == "baseline_resnet":
+        optimizer_ft = torch.optim.SGD(
+            params=model.module.classifier_head.parameters() if config.expt.distributed else parameters,  # TODO: @Fabio - check together with optim_params_pt,
+            lr=init_lr_ft,
+            momentum=config.finetuning.momentum,
+            weight_decay=config.finetuning.weight_decay
         )
-    
+    else:
+        optimizer_ft = torch.optim.SGD(
+            params=model.module.classifier_head.parameters() if config.expt.distributed else model.parameters(),  # TODO: @Fabio - check together with optim_params_pt,
+            lr=init_lr_ft,
+            momentum=config.finetuning.momentum,
+            weight_decay=config.finetuning.weight_decay
+        )
+
     # in case a dumped model exist and ssl_model_checkpoint is not set, load that dumped model
     newest_model = get_newest_model(expt_dir, suffix="linear_cls*.pth.tar")
     if not newest_model:
-        # if lin class model doesn't exist, get newest pre-training model
+        # if lin class model doesn't exist, get newest pre-training modelqq
         newest_model = get_newest_model(expt_dir)
     if newest_model and config.expt.ssl_model_checkpoint_path is None:
         config.expt.ssl_model_checkpoint_path = newest_model
 
     total_iter = 0
     meters = None
-    
-    # optionally resume from a checkpoint
-    if config.expt.ssl_model_checkpoint_path:
-        if os.path.isfile(config.expt.ssl_model_checkpoint_path):
-            print(f"=> loading checkpoint '{config.expt.ssl_model_checkpoint_path}'")
-            if config.expt.gpu is None:
-                checkpoint = torch.load(config.expt.ssl_model_checkpoint_path)
+
+    # MetaSSL code -----------------------------------------------------------------------------------------------------
+    if config.data.dataset == "CIFAR10" and config.model.arch == "baseline_resnet":
+        pass
+    else:
+        # optionally resume from a checkpoint
+        if config.expt.ssl_model_checkpoint_path:
+            if os.path.isfile(config.expt.ssl_model_checkpoint_path):
+                print(f"=> loading checkpoint '{config.expt.ssl_model_checkpoint_path}'")
+                if config.expt.gpu is None:
+                    checkpoint = torch.load(config.expt.ssl_model_checkpoint_path)
+                else:
+                    # Map model to be loaded to specified single gpu.
+                    loc = f'cuda:{config.expt.gpu}'
+                    checkpoint = torch.load(config.expt.ssl_model_checkpoint_path, map_location=loc)
+
+                if "meters_ft" in checkpoint and checkpoint["meters_ft"]:
+                    meters = checkpoint["meters_ft"]
+                if "epoch_ft" in checkpoint:
+                    config.finetuning.start_epoch = checkpoint['epoch_ft']
+                    print(f"=> loaded checkpoint '{config.expt.ssl_model_checkpoint_path}' (ft epoch {checkpoint['epoch_ft']})")
+                if "optimizer_ft" in checkpoint and checkpoint['optimizer_ft']:
+                    optimizer_ft.load_state_dict(checkpoint['optimizer_ft'])
+
+                model.load_state_dict(checkpoint['state_dict'])
             else:
-                # Map model to be loaded to specified single gpu.
-                loc = f'cuda:{config.expt.gpu}'
-                checkpoint = torch.load(config.expt.ssl_model_checkpoint_path, map_location=loc)
-            
-            if "meters_ft" in checkpoint and checkpoint["meters_ft"]:
-                meters = checkpoint["meters_ft"]
-            if "epoch_ft" in checkpoint:
-                config.finetuning.start_epoch = checkpoint['epoch_ft']
-                print(f"=> loaded checkpoint '{config.expt.ssl_model_checkpoint_path}' (ft epoch {checkpoint['epoch_ft']})")
-            if "optimizer_ft" in checkpoint and checkpoint['optimizer_ft']:
-                optimizer_ft.load_state_dict(checkpoint['optimizer_ft'])
-                
-            model.load_state_dict(checkpoint['state_dict'])
-        else:
-            print(f"=> no checkpoint found at '{config.expt.ssl_model_checkpoint_path}'")
+                print(f"=> no checkpoint found at '{config.expt.ssl_model_checkpoint_path}'")
+    # ------------------------------------------------------------------------------------------------------------------
+
 
     if config.finetuning.valid_size > 0:
         train_loader_pt, train_sampler_pt, train_loader_ft, train_sampler_ft, valid_loader_ft, test_loader_ft = get_loaders(config, parameterize_augmentation=False, bohb_infos=bohb_infos)
-    else:  # TODO: @Diane - Checkout and test on *parameterized_aug*
+    else:
         train_loader_pt, train_sampler_pt, train_loader_ft, train_sampler_ft, test_loader_ft = get_loaders(config, parameterize_augmentation=False, bohb_infos=bohb_infos)
 
     cudnn.benchmark = True
@@ -277,12 +380,13 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
     if not meters:
         meters = initialize_all_meters()
     
+
     for epoch in range(config.finetuning.start_epoch, config.finetuning.epochs):
         
         if config.expt.distributed:
             train_sampler_ft.set_epoch(epoch)
 
-        cur_lr_ft = adjust_learning_rate(optimizer_ft, init_lr_ft, epoch, total_epochs=config.finetuning.epochs)
+        cur_lr_ft = adjust_learning_rate(optimizer_ft, init_lr_ft, epoch, total_epochs=config.finetuning.epochs, use_alternative_scheduler=config.finetuning.use_alternative_scheduler)
 
         if config.expt.wd_decay_ft:
             # Do annealing
@@ -312,6 +416,7 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
 
         # Determine wheter to evaluate on the validation or test set
         if config.finetuning.valid_size > 0:
+            print("\n\n VALID \n\n")
             loader_ft = valid_loader_ft
             writer_scalar_mode = "Valid"
         else:
@@ -377,7 +482,13 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
         with open(expt_dir + "/current_val_metric.txt", 'w+') as f:
             f.write(f"{top1_avg.item()}\n")
     # ------------------------------------------------------------------------------------------------------------------
-
+    # NEPS only --------------------------------------------------------------------------------------------------------
+    # Save validation metric in a .txt (as for mp.spawn returning values is not trivial)
+    if hyperparameters is not None:
+        with open(str(expt_dir) + "/current_val_metric.txt", 'w+') as f:
+            f.write(f"{-top1_avg.item()}\n")
+            # f.write(f"{-top1_avg}\n")
+    # ------------------------------------------------------------------------------------------------------------------
 
 def train_one_epoch(
     train_loader_ft,
@@ -429,7 +540,7 @@ def train_one_epoch(
 
         get_gradients = False if config.expt.is_non_grad_based else True  # default is True
 
-        loss_ft, backbone_grads_ft_lw, backbone_grads_ft_global = finetune(model, images, target, criterion_ft, optimizer_ft, losses_ft_meter, top1_meter, top5_meter, get_gradients=get_gradients)
+        loss_ft, backbone_grads_ft_lw, backbone_grads_ft_global = finetune(model, images, target, criterion_ft, optimizer_ft, losses_ft_meter, top1_meter, top5_meter, config, get_gradients=get_gradients)
 
         mean, std = calc_layer_wise_stats(backbone_grads_pt=backbone_grads_ft_lw, backbone_grads_ft=None, metric_type="norm")
         norm_ft_avg_meter_lw.update(mean), norm_ft_std_meter_lw.update(std)
@@ -467,7 +578,7 @@ def train_one_epoch(
     return total_iter
 
 
-def finetune(model, images_ft, target_ft, criterion_ft, optimizer_ft, losses_ft_meter, top1_meter, top5_meter, get_gradients=False):
+def finetune(model, images_ft, target_ft, criterion_ft, optimizer_ft, losses_ft_meter, top1_meter, top5_meter, config, get_gradients=False):
     backbone_grads_lw = OrderedDict()
     backbone_grads_global = torch.Tensor().cuda()
     
@@ -480,12 +591,23 @@ def finetune(model, images_ft, target_ft, criterion_ft, optimizer_ft, losses_ft_
     if get_gradients:
         model.module.backbone.requires_grad_(True)
     else:
-        model.module.backbone.requires_grad_(False)
+        if config.data.dataset == "CIFAR10" and config.model.arch == "baseline_resnet":
+            # TODO @Diane - checkout
+            pass
+        else:
+            model.module.backbone.requires_grad_(False)
     
-    model.module.classifier_head.requires_grad_(True)
+    if config.data.dataset == "CIFAR10" and config.model.arch == "baseline_resnet":
+        # TODO @Diane - checkout
+        pass
+    else:
+        model.module.classifier_head.requires_grad_(True)
     
     # compute outputs
-    output_ft = model(images_ft, finetuning=True)
+    if config.data.dataset == "CIFAR10" and config.model.arch == "baseline_resnet":
+        output_ft = model(images_ft)
+    else:
+        output_ft = model(images_ft, finetuning=True)
     loss_ft = criterion_ft(output_ft, target_ft)
     loss_ft.backward()
     
@@ -504,12 +626,17 @@ def finetune(model, images_ft, target_ft, criterion_ft, optimizer_ft, losses_ft_
     # only optimizes classifier head parameters
     optimizer_ft.step()
 
-    model.module.backbone.requires_grad_(False)
+    if config.data.dataset == "CIFAR10" and config.model.arch == "baseline_resnet":
+        # TODO @Diane - checkout
+        pass
+    else:
+        model.module.backbone.requires_grad_(False)
     # just to make sure to prevent grad leakage
     for param in model.module.parameters():
         param.grad = None
     
     return loss_ft, backbone_grads_lw, backbone_grads_global
+
 
 
 if __name__ == '__main__':
@@ -571,11 +698,13 @@ if __name__ == '__main__':
     parser.add_argument('--finetuning.data_augmentation', default='none', choices=['none', 'p_probability_augment_pt', 'p_probability_augment_ft', 'p_probability_augment_1-pt'], help='Select if and how finetuning gets augmented.')
     parser.add_argument('--finetuning.wd_start', default=1e-3, type=float, help='Upper value of WD Decay. Only used when wd_decay is True.')
     parser.add_argument('--finetuning.wd_end', default=1e-6, type=float, help='Lower value of WD Decay. Only used when wd_decay is True.')
+    parser.add_argument('--finetuning.use_alternative_scheduler', action="store_true", help='Use the learning rate scheduler from the baseline codebase')
     
     parser.add_argument('--model', default="model", type=str, metavar='N')
     parser.add_argument('--model.model_type', type=str, default='resnet50', help='all torchvision ResNets')
     parser.add_argument('--model.seed', type=int, default=123, help='the seed')
     parser.add_argument('--model.turn_off_bn', action='store_true', help='turns off all batch norm instances in the model')
+    parser.add_argument('--model.arch', type=str, default="baseline_resnet", choices=["our_resnet", "tv_resnet", "baseline_resnet"], help='Select architecture for CIFAR10')
     
     parser.add_argument('--data', default="data", type=str, metavar='N')
     parser.add_argument('--data.seed', type=int, default=123, help='the seed')
@@ -598,14 +727,16 @@ if __name__ == '__main__':
     # parser.add_argument("--bohb.max_budget", type=int, default=4)
     # parser.add_argument("--bohb.budget_mode", type=str, default="epochs", choices=["epochs", "data"], help="Choose your desired fidelity")
     # parser.add_argument("--bohb.eta", type=int, default=2)
-    # parser.add_argument("--bohb.configspace_mode", type=str, default='color_jitter_strengths', choices=["imagenet_probability_simsiam_augment", "cifar10_probability_simsiam_augment", "color_jitter_strengths", "rand_augment", "probability_augment", "double_probability_augment"],
-    # help='Define which configspace to use.')
+    # parser.add_argument("--bohb.configspace_mode", type=str, default='color_jitter_strengths', choices=["imagenet_probability_simsiam_augment", "cifar10_probability_simsiam_augment", "color_jitter_strengths", "rand_augment", "probability_augment", "double_probability_augment"], help='Define which configspace to use.')
     # parser.add_argument("--bohb.nic_name", default="lo", help="The network interface to use")  # local: "lo", cluster: "eth0"
     # parser.add_argument("--bohb.port", type=int, default=0)
     # parser.add_argument("--bohb.worker", action="store_true", help="Make this execution a worker server")
     # parser.add_argument("--bohb.warmstarting", type=bool, default=False)
     # parser.add_argument("--bohb.warmstarting_dir", type=str, default=None)
     # parser.add_argument("--bohb.test_env", action='store_true', help='If using this flag, the master runs a worker in the background and workers are not being shutdown after registering results.')
+
+    parser.add_argument('--neps', default="neps", type=str, metavar='NEPS')
+    parser.add_argument("--neps.is_neps_run", action='store_true', help='Set this flag to run a NEPS experiment.')
 
     parser.add_argument("--use_fixed_args", action="store_true", help="Flag to control whether to take arguments from yaml file as default or from arg parse")
     

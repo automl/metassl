@@ -8,12 +8,14 @@
 # code taken from https://github.com/facebookresearch/simsiam
 import argparse
 import builtins
+import logging
 import os
 import random
 import time
 import warnings
 import math
 from collections import OrderedDict
+from copy import deepcopy
 
 import jsonargparse
 import numpy as np
@@ -30,6 +32,9 @@ import torchvision.models as models
 from jsonargparse import ArgumentParser
 from torch.utils.tensorboard import SummaryWriter
 
+from metassl.hyperparameter_optimization.configspaces import get_parameterized_cifar10_augmentation_configspace, get_parameterized_cifar10_augmentation_with_solarize_configspace, get_parameterized_cifar10_augmentation_with_solarize_configspace_with_user_prior
+from metassl.utils.criterion import SimSiamLoss
+
 warnings.filterwarnings("ignore", category=UserWarning)
 
 try:
@@ -40,7 +45,7 @@ try:
     from metassl.utils.simsiam_alternating import SimSiam
     from metassl.utils.summary import write_to_summary_writer
     import metassl.models.resnet_cifar as our_cifar_resnets
-    from metassl.utils.torch_utils import get_newest_model, check_and_save_checkpoint, deactivate_bn, validate, accuracy, adjust_learning_rate
+    from metassl.utils.torch_utils import get_newest_model, check_and_save_checkpoint, save_checkpoint_baseline_code, deactivate_bn, validate, accuracy, adjust_learning_rate
     from metassl.utils.knn_validation import knn_classifier
     from metassl.utils.io import get_expt_dir_with_bohb_config_id, organize_experiment_saving, find_free_port
 
@@ -52,7 +57,7 @@ except ImportError:
     from .utils.simsiam_alternating import SimSiam
     from .utils.summary import write_to_summary_writer
     from .models import resnet_cifar as our_cifar_resnets
-    from .utils.torch_utils import get_newest_model, check_and_save_checkpoint, deactivate_bn, validate, accuracy, adjust_learning_rate
+    from .utils.torch_utils import get_newest_model, check_and_save_checkpoint, save_checkpoint_baseline_code, deactivate_bn, validate, accuracy, adjust_learning_rate
     from .utils.knn_validation import knn_classifier
     from .utils.io import get_expt_dir_with_bohb_config_id, organize_experiment_saving, find_free_port
 
@@ -63,7 +68,11 @@ model_names = sorted(
     )
 
 
-def main(config, expt_dir, bohb_infos=None):
+def main(working_directory, config, bohb_infos=None, **hyperparameters):
+    config = deepcopy(config)  # Important for NEPS (for not overwriting pretraining stuff in finetuning and vice versa)
+    print("\n\n\nPRETRAINING\n\n\n")
+    expt_dir = working_directory  # NEPS implementation requires "working_directory" as the first argument
+    
     # BOHB only --------------------------------------------------------------------------------------------------------
     if bohb_infos is not None:
         # Integrate budget based on budget_mode
@@ -92,21 +101,23 @@ def main(config, expt_dir, bohb_infos=None):
         # config.expt.dist_url = "tcp://localhost:" + master_port
         # print(f"{config.expt.dist_url=}")
         
-        print(f"\n\n\n\n\n\n{bohb_infos=}\n\n\n\n\n\n")
+        print(f"\n\n\n\n\n\nbohb_infos: {bohb_infos}\n\n\n\n\n\n")
     # ------------------------------------------------------------------------------------------------------------------
-    
-    if config.data.dataset == "CIFAR10":
-        # Define master port (for preventing 'Address already in use error' when submitting more than 1 jobs on 1 node)
-        # Code from: https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number
-        master_port = find_free_port()
-        config.expt.dist_url = "tcp://localhost:" + str(master_port)
-        # if this should still fail: do it via filesystem initialization
-        # https://pytorch.org/docs/stable/distributed.html#shared-file-system-initialization
-    
+    neps_hyperparameters = None
+    # NEPS only --------------------------------------------------------------------------------------------------------
+    if config.neps.is_neps_run:
+        neps_hyperparameters = hyperparameters
+        # print(f"Hyperparameters: {hyperparameters}")
+        # learning_rate = hyperparameters["learning_rate"]
+        # print(f"Learning rate: {learning_rate}")
+        # config.train.lr = learning_rate
+    # ------------------------------------------------------------------------------------------------------------------
+
     if config.expt.seed is not None:
         random.seed(config.expt.seed)
         torch.manual_seed(config.expt.seed)
-        cudnn.deterministic = True
+        np.random.seed(config.expt.seed)
+        cudnn.deterministic = True  # TODO: @Diane - checkout
         warnings.warn(
             'You have chosen to seed training. '
             'This will turn on the CUDNN deterministic setting, '
@@ -125,6 +136,14 @@ def main(config, expt_dir, bohb_infos=None):
         config.expt.world_size = int(os.environ["WORLD_SIZE"])
     
     config.expt.distributed = config.expt.world_size > 1 or config.expt.multiprocessing_distributed
+
+    if config.data.dataset == "CIFAR10" and config.expt.distributed:
+        # Define master port (for preventing 'Address already in use error' when submitting more than 1 jobs on 1 node)
+        # Code from: https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number
+        master_port = find_free_port()
+        config.expt.dist_url = "tcp://localhost:" + str(master_port)
+        # if this should still fail: do it via filesystem initialization
+        # https://pytorch.org/docs/stable/distributed.html#shared-file-system-initialization
     
     ngpus_per_node = torch.cuda.device_count()
     if config.expt.multiprocessing_distributed:
@@ -133,22 +152,33 @@ def main(config, expt_dir, bohb_infos=None):
         config.expt.world_size = ngpus_per_node * config.expt.world_size
         # Use torch.multiprocessing.spawn to launch distributed processes: the
         # main_worker process function
-        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, config, expt_dir, bohb_infos))
+        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperparameters))
     else:
         # Simply call main_worker function
-        main_worker(config.expt.gpu, ngpus_per_node, config, expt_dir, bohb_infos)
-    
+        try:
+            main_worker(config.expt.gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperparameters)
+        except KeyError as e:
+            print("\n\n RETURN 0 \n\n", e)
+            return 0
+
     # BOHB only --------------------------------------------------------------------------------------------------------
     # Read validation metric from the .txt (as for mp.spawn returning values is not trivial)
     if bohb_infos is not None:
         with open(expt_dir + "/current_val_metric.txt", 'r') as f:
             val_metric = f.read()
-        print(f"{val_metric=}")
+        print(f"val_metric: {val_metric}")
+        return float(val_metric)
+    # ------------------------------------------------------------------------------------------------------------------
+    # NEPS only --------------------------------------------------------------------------------------------------------
+    # Read validation metric from the .txt (as for mp.spawn returning values is not trivial)
+    if config.neps.is_neps_run:
+        from metassl.train_linear_classifier_simsiam import main as main_ft
+        val_metric = main_ft(config=config, expt_dir=expt_dir, bohb_infos=None, hyperparameters=neps_hyperparameters)
         return float(val_metric)
     # ------------------------------------------------------------------------------------------------------------------
 
 
-def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
+def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperparameters):
     config.expt.gpu = gpu
     
     # suppress printing if not master
@@ -173,27 +203,42 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
             world_size=config.expt.world_size, rank=config.expt.rank
             )
         torch.distributed.barrier()
+
     # create model
+    # TODO: @Diane - Check out and compare against baseline code
     if config.data.dataset == 'CIFAR10':
-        # Use model from our model folder instead from torchvision!
-        print(f"=> creating model resnet18")
-        model = SimSiam(our_cifar_resnets.resnet18, config.simsiam.dim, config.simsiam.pred_dim, num_classes=10)
+        if config.model.arch == "tv_resnet":
+            print(f"=> creating model {config.model.model_type}")
+            model = SimSiam(models.__dict__[config.model.model_type], config.simsiam.dim, config.simsiam.pred_dim, num_classes=10)
+        elif config.model.arch == "our_resnet":
+            # Use model from our model folder instead from torchvision!
+            print(f"=> creating model resnet18")
+            model = SimSiam(our_cifar_resnets.resnet18, config.simsiam.dim, config.simsiam.pred_dim, num_classes=10)
+        elif config.model.arch == "baseline_resnet":
+            from metassl.utils.baseline_simsiam import SimSiam as BaselineSimSiam
+            config.simsiam.pred_dim = 2048
+            model = BaselineSimSiam()
+        else:
+            raise NotImplementedError
+
     else:
         print(f"=> creating model {config.model.model_type}")
         model = SimSiam(models.__dict__[config.model.model_type], config.simsiam.dim, config.simsiam.pred_dim, num_classes=1000)
-    
+
+    # print(model)
+
     if config.model.turn_off_bn:
         print("Turning off BatchNorm in entire model.")
         deactivate_bn(model)
         model.encoder_head[6].bias.requires_grad = True
     
-    # infer learning rate before changing batch size
+    # infer learning rate !before changing batch size! > see lines below
+    # TODO: @Fabio - keep for CIFAR10? (metassl code); lr_b = 0.06, lr_m = 0.03 * 512 / 256 = 0.06 also
     init_lr_pt = config.train.lr * config.train.batch_size / 256
-    
-    config.train.init_lr_pt = init_lr_pt
+    config.train.init_lr_pt = init_lr_pt  # TODO: config.train.init_lr_pt is currently unused!
     
     if config.expt.distributed:
-        # Apply SyncBN
+        # Apply SyncBN TODO: @Fabio - keep for CIFAR10? (metassl code)
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
         # For multiprocessing distributed, DistributedDataParallel constructor
         # should always set the single device scope, otherwise,
@@ -209,7 +254,7 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
             model = torch.nn.parallel.DistributedDataParallel(
                 model,
                 device_ids=[config.expt.gpu],
-                find_unused_parameters=True
+                find_unused_parameters=True  # TODO: @Fabio - keep for CIFAR10? (metassl code)
                 )
         else:
             model.cuda()
@@ -219,33 +264,50 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
     elif config.expt.gpu is not None:
         torch.cuda.set_device(config.expt.gpu)
         model = model.cuda(config.expt.gpu)
-        # comment out the following line for debugging
-        # raise NotImplementedError("Only DistributedDataParallel or gpu mode is supported.")
+        # comment out the following line for debugging  # TODO: delete? (metassl code)
+        # raise NotImplementedError("Only DistributedDataParallel or gpu mode is supported.")  # TODO: delete (metassl code)
+    else:
+        # DataParallel will divide and allocate batch_size to all available GPUs
+        model = torch.nn.DataParallel(model).cuda()
+        # TODO: Integrate lines below? (baselines code)
+        # if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
+        #     model.features = torch.nn.DataParallel(model.features)
+        #     model.cuda()
+        # else:
+        #     model = torch.nn.DataParallel(model).cuda()
+
+    # TODO: delete? (metassl code)
     # else:
     #     # AllGather implementation (batch shuffle, queue update, etc.) in
     #     # this code only supports DistributedDataParallel.
     #     raise NotImplementedError("Only DistributedDataParallel is supported.")
     
     # define loss function (criterion) and optimizer
-    criterion_pt = nn.CosineSimilarity(dim=1).cuda(config.expt.gpu)
-    criterion_ft = nn.CrossEntropyLoss().cuda(config.expt.gpu)
+
+    if config.simsiam.use_baselines_loss:
+        loss_version = 'simplified'  # choices=['simplified', 'original'], help='do the same thing but simplified version is much faster
+        criterion_pt = SimSiamLoss(loss_version)
+    else:
+        criterion_pt = nn.CosineSimilarity(dim=1).cuda(config.expt.gpu)  # TODO: @Diane - Check out and compare against baseline code
+        # criterion_ft = nn.CrossEntropyLoss().cuda(config.expt.gpu)  # TODO: delete as it is unused?
     
-    optim_params_pt = [
-        {
-            'params': model.module.backbone.parameters() if config.expt.distributed else model.backbone.parameters(),
-            'fix_lr': False
-            },
-        {
-            'params': model.module.encoder_head.parameters() if config.expt.distributed else model.encoder_head.parameters(),
-            'fix_lr': False
-            },
-        {
-            'params': model.module.predictor.parameters() if config.expt.distributed else model.predictor.parameters(),
-            'fix_lr': config.simsiam.fix_pred_lr
-            }]
+    if config.expt.distributed:  # TODO: @Fabio - This is not working for not config.expt.distributed (metassl code)
+        optim_params_pt = [
+            {
+                'params': model.module.backbone.parameters() if config.expt.distributed else model.backbone.parameters(),
+                'fix_lr': False
+                },
+            {
+                'params': model.module.encoder_head.parameters() if config.expt.distributed else model.encoder_head.parameters(),
+                'fix_lr': False
+                },
+            {
+                'params': model.module.predictor.parameters() if config.expt.distributed else model.predictor.parameters(),
+                'fix_lr': config.simsiam.fix_pred_lr
+                }]
     
     optimizer_pt = torch.optim.SGD(
-        params=optim_params_pt,
+        params=optim_params_pt if config.expt.distributed else model.parameters(),  # TODO: @Fabio - check together with optim_params_pt
         lr=init_lr_pt,
         momentum=config.train.momentum,
         weight_decay=config.train.weight_decay
@@ -277,11 +339,12 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
             print(f"=> loaded checkpoint '{config.expt.ssl_model_checkpoint_path}' (epoch {checkpoint['epoch']})")
         else:
             print(f"=> no checkpoint found at '{config.expt.ssl_model_checkpoint_path}'")
-    
+
+
     if config.finetuning.valid_size > 0:
-        train_loader_pt, train_sampler_pt, train_loader_ft, train_sampler_ft, valid_loader_ft, test_loader_ft = get_loaders(config, parameterize_augmentation=False, bohb_infos=bohb_infos)
+        train_loader_pt, train_sampler_pt, train_loader_ft, train_sampler_ft, valid_loader_ft, test_loader_ft = get_loaders(config, parameterize_augmentation=False, bohb_infos=bohb_infos, neps_hyperparameters=neps_hyperparameters)
     else:  # TODO: @Diane - Checkout and test on *parameterized_aug*
-        train_loader_pt, train_sampler_pt, train_loader_ft, train_sampler_ft, test_loader_ft = get_loaders(config, parameterize_augmentation=False, bohb_infos=bohb_infos)
+        train_loader_pt, train_sampler_pt, train_loader_ft, train_sampler_ft, test_loader_ft = get_loaders(config, parameterize_augmentation=False, bohb_infos=bohb_infos, neps_hyperparameters=neps_hyperparameters)
     
     cudnn.benchmark = True
     writer = None
@@ -290,7 +353,8 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
         writer = SummaryWriter(log_dir=os.path.join(expt_dir, "tensorboard_pt"))
     if not meters:
         meters = initialize_all_meters()
-    
+
+
     for epoch in range(config.train.start_epoch, config.train.epochs):
         
         if config.expt.distributed:
@@ -365,17 +429,23 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
                 raise ValueError("Not implemented yet!")
         
         elif (config.expt.save_model and epoch % config.expt.save_model_frequency == 0) or (config.expt.save_model and is_last_epoch):
-            check_and_save_checkpoint(
-                config=config,
-                ngpus_per_node=ngpus_per_node,
-                total_iter=total_iter,
-                epoch=epoch,
-                model=model,
-                optimizer_pt=optimizer_pt,
-                optimizer_ft=None,
-                expt_dir=expt_dir,
-                meters=meters,
-                )
+            if config.data.dataset == "CIFAR10" and config.model.arch == "baseline_resnet":
+                checkpoint_name = 'checkpoint'
+                save_checkpoint_baseline_code(epoch=epoch, model=model, optimizer=optimizer_pt, acc=meters,
+                                              filename=os.path.join(expt_dir, f'{checkpoint_name}_{epoch:04d}.pth.tar'),
+                                              msg='Saving...')
+            else:
+                check_and_save_checkpoint(
+                    config=config,
+                    ngpus_per_node=ngpus_per_node,
+                    total_iter=total_iter,
+                    epoch=epoch,
+                    model=model,
+                    optimizer_pt=optimizer_pt,
+                    optimizer_ft=None,
+                    expt_dir=expt_dir,
+                    meters=meters,
+                    )
 
     # shut down writer at end of training
     if config.expt.rank == 0:
@@ -436,8 +506,11 @@ def train_one_epoch(
         
         get_gradients = False if config.expt.is_non_grad_based else True  # default is True
         loss_pt, backbone_grads_pt_lw, backbone_grads_pt_global, z1, z2 = pretrain(model, images_pt, criterion_pt, optimizer_pt, losses_pt_meter, data_time_meter, end, config=config, get_gradients=get_gradients)
-        
-        z_std_normalized = np.std(z1.cpu().numpy() / (torch.linalg.norm(z1, 2).cpu().numpy()) + 1e-9)
+
+        if config.data.dataset == "CIFAR10" and config.model.arch == "baseline_resnet":
+            z_std_normalized = np.std(z1.cpu().detach().numpy() / (torch.linalg.norm(z1, 2).cpu().detach().numpy()) + 1e-9)
+        else:
+            z_std_normalized = np.std(z1.cpu().numpy() / (torch.linalg.norm(z1, 2).cpu().numpy()) + 1e-9)
         target_std_meter.update(z_std_normalized)
         
         grads = {
@@ -493,30 +566,40 @@ def pretrain(model, images_pt, criterion_pt, optimizer_pt, losses_pt, data_time,
     
     # pre-training
     # compute outputs
-    p1, p2, z1, z2 = model(x1=images_pt[0], x2=images_pt[1], finetuning=False)
+    if config.data.dataset == "CIFAR10" and config.model.arch == "baseline_resnet":
+        p1, p2, z1, z2 = model(im_aug1=images_pt[0], im_aug2=images_pt[1])
+    else:
+        p1, p2, z1, z2 = model(x1=images_pt[0], x2=images_pt[1], finetuning=False)
     
     # compute losses
-    loss_pt = -(criterion_pt(p1, z2).mean() + criterion_pt(p2, z1).mean()) * 0.5
-    losses_pt.update(loss_pt.item(), images_pt[0].size(0))
+    if config.simsiam.use_baselines_loss:
+        loss_pt = criterion_pt(z1, z2, p1, p2)
+        losses_pt.update(loss_pt.item(), images_pt[0].size(0))
+    else:
+        loss_pt = -(criterion_pt(p1, z2).mean() + criterion_pt(p2, z1).mean()) * 0.5
+        losses_pt.update(loss_pt.item(), images_pt[0].size(0))
+
     
     # compute gradient and do SGD step
     optimizer_pt.zero_grad()
     loss_pt.backward()
     # step does not change .grad field of the parameters.
     optimizer_pt.step()
-    
-    if config.expt.distributed:
-        backbone = model.module.backbone
-    else:
-        backbone = model.backbone
-    
+
     if get_gradients:
+        if config.expt.distributed:
+            backbone = model.module.backbone
+        else:
+            # TODO: @Fabio - This does not seem to work for CIFAR10
+            backbone = model.backbone
+
         for key, param in backbone.named_parameters():
             grad_tensor = param.grad.detach_().clone().flatten()
             backbone_grads_lw[key] = torch.tensor(grad_tensor)
             backbone_grads_global = torch.cat([backbone_grads_global, grad_tensor], dim=0)
-    
+
     return loss_pt, backbone_grads_lw, backbone_grads_global, z1, z2
+
 
 
 if __name__ == '__main__':
@@ -584,6 +667,7 @@ if __name__ == '__main__':
     parser.add_argument('--model.model_type', type=str, default='resnet50', help='all torchvision ResNets')
     parser.add_argument('--model.seed', type=int, default=123, help='the seed')
     parser.add_argument('--model.turn_off_bn', action='store_true', help='turns off all batch norm instances in the model')
+    parser.add_argument('--model.arch', type=str, default="baseline_resnet", choices=["our_resnet", "tv_resnet", "baseline_resnet"], help='Select architecture for CIFAR10')
     
     parser.add_argument('--data', default="data", type=str, metavar='N')
     parser.add_argument('--data.seed', type=int, default=123, help='the seed')
@@ -594,10 +678,8 @@ if __name__ == '__main__':
     parser.add_argument('--simsiam.dim', type=int, default=2048, help='the feature dimension')
     parser.add_argument('--simsiam.pred_dim', type=int, default=512, help='the hidden dimension of the predictor')
     parser.add_argument('--simsiam.fix_pred_lr', action="store_false", help='fix learning rate for the predictor (default: True')
-    
-    parser.add_argument('--learnaug', default="learnaug", type=str, metavar='N')
-    parser.add_argument('--learnaug.type', default="default", choices=["colorjitter", "default", "full_net"], help='Define which type of learned augmentation to use.')
-    
+    parser.add_argument('--simsiam.use_baselines_loss', action="store_true", help='Set this flag to use the loss from the baseline code (PT)')
+
     # parser.add_argument('--bohb', default="bohb", type=str, metavar='N')
     # parser.add_argument("--bohb.run_id", default="default_BOHB")
     # parser.add_argument("--bohb.seed", type=int, default=123, help="random seed")
@@ -606,15 +688,21 @@ if __name__ == '__main__':
     # parser.add_argument("--bohb.max_budget", type=int, default=4)
     # parser.add_argument("--bohb.budget_mode", type=str, default="epochs", choices=["epochs", "data"], help="Choose your desired fidelity")
     # parser.add_argument("--bohb.eta", type=int, default=2)
-    # parser.add_argument("--bohb.configspace_mode", type=str, default='color_jitter_strengths', choices=["imagenet_probability_simsiam_augment", "cifar10_probability_simsiam_augment", "color_jitter_strengths", "rand_augment", "probability_augment", "double_probability_augment"],
-    # help='Define which configspace to use.')
+    # parser.add_argument("--bohb.configspace_mode", type=str, default='color_jitter_strengths', choices=["imagenet_probability_simsiam_augment", "cifar10_probability_simsiam_augment", "color_jitter_strengths", "rand_augment", "probability_augment", "double_probability_augment"], help='Define which configspace to use.')
     # parser.add_argument("--bohb.nic_name", default="lo", help="The network interface to use")  # local: "lo", cluster: "eth0"
     # parser.add_argument("--bohb.port", type=int, default=0)
     # parser.add_argument("--bohb.worker", action="store_true", help="Make this execution a worker server")
     # parser.add_argument("--bohb.warmstarting", type=bool, default=False)
     # parser.add_argument("--bohb.warmstarting_dir", type=str, default=None)
     # parser.add_argument("--bohb.test_env", action='store_true', help='If using this flag, the master runs a worker in the background and workers are not being shutdown after registering results.')
-    
+
+    parser.add_argument('--neps', default="neps", type=str, metavar='NEPS')
+    parser.add_argument('--neps.is_neps_run', action='store_true', help='Set this flag to run a NEPS experiment.')
+    parser.add_argument('--neps.config_space', type=str, default='parameterized_cifar10_augmentation_with_solarize', choices=['parameterized_cifar10_augmentation', 'parameterized_cifar10_augmentation_with_solarize', 'probability_augment'], help='Define which configspace to use.')
+    parser.add_argument('--neps.is_user_prior', action='store_true', help='Set this flag to run a NEPS experiment with user prior.')
+    parser.add_argument('--learnaug', default="learnaug", type=str, metavar='N')
+    parser.add_argument('--learnaug.type', default="default", choices=["colorjitter", "default", "full_net"], help='Define which type of learned augmentation to use.')
+
     parser.add_argument("--use_fixed_args", action="store_true", help="Flag to control whether to take arguments from yaml file as default or from arg parse")
     
     config = _parse_args(config_parser, parser)
@@ -635,11 +723,31 @@ if __name__ == '__main__':
         if config.bohb.configspace_mode == 'double_probability_augment' and config.finetuning.data_augmentation != "p_probability_augment_ft":
             raise ValueError("If you run a BOHB experiment with 'double_probability_augment' configspace mode, you also need to select 'p_probability_augment_ft' as finetuning data augmentation mode!")
     
-    # Run BOHB / main
-    if is_bohb_run:
-        from metassl.hyperparameter_optimization.master import start_bohb_master
-        
-        start_bohb_master(yaml_config=config, expt_dir=expt_dir)
+
+
+    if config.neps.is_neps_run:
+        import neps
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-8s [%(name)s] %(message)s")
+        # pipeline_space = dict(learning_rate=neps.FloatParameter(lower=0, upper=1))
+        if config.neps.config_space == 'parameterized_cifar10_augmentation':
+            pipeline_space = get_parameterized_cifar10_augmentation_configspace()
+        elif config.neps.config_space == 'parameterized_cifar10_augmentation_with_solarize':
+            if config.neps.is_user_prior:
+                pipeline_space = get_parameterized_cifar10_augmentation_with_solarize_configspace_with_user_prior()
+            else:
+                pipeline_space = get_parameterized_cifar10_augmentation_with_solarize_configspace()
+        else:
+            raise NotImplementedError
+        from functools import partial
+        main = partial(main, config=config)
+        neps.run(run_pipeline=main, pipeline_space=pipeline_space, working_directory=expt_dir, max_evaluations_total=200, max_evaluations_per_run=1)
+        # max_evaluations_per_run=1
     
     else:
-        main(config=config, expt_dir=expt_dir)
+        # Run BOHB / main
+        if is_bohb_run:
+            from metassl.hyperparameter_optimization.master import start_bohb_master
+
+            start_bohb_master(yaml_config=config, expt_dir=expt_dir)
+        else:
+            main(working_directory=expt_dir, config=config)

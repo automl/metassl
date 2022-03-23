@@ -60,8 +60,9 @@ finetuning:
   lr:                100                  # the default LR
   valid_size:        0.0                  # If valid_size > 0, pick some images from the trainset to do evaluation on. If valid_size=0 evaluation is done on the testset.
   data_augmentation: 'none'               # Select if and how finetuning gets augmented. choices=['none', 'p_probability_augment_pt', 'p_probability_augment_ft', 'p_probability_augment_1-pt']
-  wd_start:          1.e-3                # Upper value of WD Decay. Only used when wd_decay is True.
-  wd_end:            1.e-6                # Lower value of WD Decay. Only used when wd_decay is True.
+  wd_start:          1.e-3                 # Upper value of WD Decay. Only used when wd_decay is True.
+  wd_end:            1.e-6                 # Lower value of WD Decay. Only used when wd_decay is True.
+  use_alternative_scheduler: False         # Use the learning rate scheduler from the baseline codebase
 #######################################
 ###       Model Configuration       ###
 #######################################
@@ -69,7 +70,7 @@ model:
   model_type:  "resnet50"                  # supported models: all torchvision ResNets
   seed:        123
   turn_off_bn: False                     # turns off all batch norm instances in the model
-
+  arch:        "baseline_resnet"         # Select architecture for CIFAR10; choices=["our_resnet", "tv_resnet", "baseline_resnet"]
 
 #######################################
 ###       Data Configuration        ###
@@ -87,6 +88,7 @@ simsiam:
   dim:         2048                                  # feature dimension (default: 2048)
   pred_dim:    512                              # hidden dimension of the predictor (default: 512)
   fix_pred_lr: True                        # Fix learning rate for the predictor
+  use_baselines_loss: False                # Set this flag to use the loss from the baseline code (PT)
 
 ########################################
 ####       Learn Augmentations       ###
@@ -98,18 +100,29 @@ learnaug:
 ########################################
 ####       BOHB Specific             ###
 ########################################
-#bohb:
-#  run_id:           "default_BOHB"
-#  seed:             123
-#  n_iterations:     10                          # How many BOHB iterations
-#  min_budget:       5
-#  max_budget:       20
-#  budget_mode:      "epochs"                    # Choose your desired fidelity between 'epochs' and 'data'
-#  eta:              2
-#  configspace_mode: "color_jitter_strengths"    # Define which configspace to use choices=["imagenet_probability_augment", "cifar10_probability_augment", "color_jitter_strengths"]
-#  nic_name:         "lo"                        # Define the network interface to use > local: "lo", cluster: "eth0"
-#  port:             0
-#  worker:           False                       # Make this execution a worker server, action="store_true"
-#  warmstarting:     False
-#  warmstarting_dir: None
-#  test_env:         False                       # If using this flag, the master runs a worker in the background and workers are not being shutdown after registering results.
+# bohb:
+#   run_id:           "default_BOHB"
+#   seed:             123
+#   n_iterations:     10                          # How many BOHB iterations
+#   min_budget:       5
+#   max_budget:       20
+#   budget_mode:      "epochs"                    # Choose your desired fidelity between 'epochs' and 'data'
+#   eta:              2
+#   configspace_mode: "color_jitter_strengths"    # Define which configspace to use
+#   # choices=["imagenet_probability_augment",
+#   # "cifar10_probability_augment", "color_jitter_strengths"]
+#   nic_name:         "lo"                        # Define the network interface to use > local: "lo", cluster: "eth0"
+#   port:             0
+#   worker:           False                       # Make this execution a worker server, action="store_true"
+#   warmstarting:     False
+#   warmstarting_dir: None
+#   test_env:         False                       # If using this flag, the master runs a worker in the background and workers are not being shutdown after registering results.
+
+
+#######################################
+###       NEPS Specific             ###
+#######################################
+neps:
+  is_neps_run:    False                         # Set this flag to run a NEPS experiment.
+  config_space:   'parameterized_cifar10_augmentation'  # Define which configspace to use. choices=['parameterized_cifar10_augmentation', 'probability_augment']
+  is_user_prior:  False                         # Set this flag to run a NEPS experiment with user prior

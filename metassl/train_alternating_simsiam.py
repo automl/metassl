@@ -110,7 +110,7 @@ def main(config, expt_dir, bohb_infos=None):
         # config.expt.dist_url = "tcp://localhost:" + master_port
         # print(f"{config.expt.dist_url=}")
         
-        print(f"\n\n\n\n\n\n{bohb_infos=}\n\n\n\n\n\n")
+        print(f"\n\n\n\n\n\nbohb_infos: {bohb_infos}\n\n\n\n\n\n")
     # ------------------------------------------------------------------------------------------------------------------
 
     if config.data.dataset == "CIFAR10":
@@ -164,7 +164,7 @@ def main(config, expt_dir, bohb_infos=None):
     if bohb_infos is not None:
         with open(expt_dir + "/current_val_metric.txt", 'r') as f:
             val_metric = f.read()
-        print(f"{val_metric=}")
+        print(f"val_metric: {val_metric}")
         return float(val_metric)
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -579,8 +579,9 @@ def train_one_epoch(
             target_ft = target_ft.cuda(config.expt.gpu, non_blocking=True)
         
         if parameterize_augmentations and config.expt.rank == 0 and i % (config.expt.print_freq * 1000) == 0:
-            image_data_to_plot_dict = get_image_data_to_plot(rand_int=rand_int, untransformed_image=untransformed_image, images_pt=images_pt, images_ft=images_ft, target_ft=target_ft, strengths=strengths)
-            
+            # image_data_to_plot_dict = get_image_data_to_plot(rand_int=rand_int, untransformed_image=untransformed_image, images_pt=images_pt, images_ft=images_ft, target_ft=target_ft, strengths=strengths)
+            pass
+
         alternating_mode = False if config.expt.is_non_grad_based else True  # default is True
         loss_pt, backbone_grads_pt_lw, backbone_grads_pt_global, z1, z2 = pretrain(model, images_pt, criterion_pt, optimizer_pt, losses_pt_meter, data_time_meter, end, alternating_mode=alternating_mode)
 
@@ -682,19 +683,19 @@ def train_one_epoch(
             img = hist_to_image(aug_model.color_jitter_histogram_hue, "Color Jitter Strength Hue Counts")
             writer.add_image(tag="Advanced Stats/color jitter strength hue", img_tensor=img, global_step=total_iter)
 
-            img = tensor_to_image(image_data_to_plot_dict["untransformed_image"], f"Randomly sampled untransformed image")
-            writer.add_image(tag="Advanced Stats/sampled untransformed image", img_tensor=img, global_step=total_iter)
+            # img = tensor_to_image(image_data_to_plot_dict["untransformed_image"], f"Randomly sampled untransformed image")
+            # writer.add_image(tag="Advanced Stats/sampled untransformed image", img_tensor=img, global_step=total_iter)
 
-            title = image_data_to_plot_dict["title"]
+            # title = image_data_to_plot_dict["title"]
 
-            img = tensor_to_image(image_data_to_plot_dict["img0"], f"Randomly sampled transformed image 1\n {title}")
-            writer.add_image(tag="Advanced Stats/sampled transformed image 1", img_tensor=img, global_step=total_iter)
+            # img = tensor_to_image(image_data_to_plot_dict["img0"], f"Randomly sampled transformed image 1\n {title}")
+            # writer.add_image(tag="Advanced Stats/sampled transformed image 1", img_tensor=img, global_step=total_iter)
 
-            img = tensor_to_image(image_data_to_plot_dict["img1"], f"Randomly sampled transformed image 2\n {title}")
-            writer.add_image(tag="Advanced Stats/sampled transformed image 2", img_tensor=img, global_step=total_iter)
+            # img = tensor_to_image(image_data_to_plot_dict["img1"], f"Randomly sampled transformed image 2\n {title}")
+            # writer.add_image(tag="Advanced Stats/sampled transformed image 2", img_tensor=img, global_step=total_iter)
 
-            ft_img = tensor_to_image(image_data_to_plot_dict["ft_img"], f"Randomly sampled finetuning image\n with label {image_data_to_plot_dict['ft_label']}")
-            writer.add_image(tag="Advanced Stats/sampled finetuning image", img_tensor=ft_img, global_step=total_iter)
+            # ft_img = tensor_to_image(image_data_to_plot_dict["ft_img"], f"Randomly sampled finetuning image\n with label {image_data_to_plot_dict['ft_label']}")
+            # writer.add_image(tag="Advanced Stats/sampled finetuning image", img_tensor=ft_img, global_step=total_iter)
             
     return total_iter
 
@@ -878,15 +879,17 @@ if __name__ == '__main__':
     # parser.add_argument("--bohb.max_budget", type=int, default=4)
     # parser.add_argument("--bohb.budget_mode", type=str, default="epochs", choices=["epochs", "data"], help="Choose your desired fidelity")
     # parser.add_argument("--bohb.eta", type=int, default=2)
-    # parser.add_argument("--bohb.configspace_mode", type=str, default='color_jitter_strengths', choices=["imagenet_probability_simsiam_augment", "cifar10_probability_simsiam_augment", "color_jitter_strengths", "rand_augment", "probability_augment", "double_probability_augment"],
-    # help='Define which configspace to use.')
+    # parser.add_argument("--bohb.configspace_mode", type=str, default='color_jitter_strengths', choices=["imagenet_probability_simsiam_augment", "cifar10_probability_simsiam_augment", "color_jitter_strengths", "rand_augment", "probability_augment", "double_probability_augment"], help='Define which configspace to use.')
     # parser.add_argument("--bohb.nic_name", default="lo", help="The network interface to use")  # local: "lo", cluster: "eth0"
-    # parser.add_argument("--bohb.port", type=int, default=0)
+    # parser.add_argument("--bohb.port", type=int, default=0, help="Add port for BOHB")
     # parser.add_argument("--bohb.worker", action="store_true", help="Make this execution a worker server")
     # parser.add_argument("--bohb.warmstarting", type=bool, default=False)
     # parser.add_argument("--bohb.warmstarting_dir", type=str, default=None)
     # parser.add_argument("--bohb.test_env", action='store_true', help='If using this flag, the master runs a worker in the background and workers are not being shutdown after registering results.')
-
+    
+    parser.add_argument('--neps', default="neps", type=str, metavar='NEPS')
+    parser.add_argument('--neps.is_neps_run', action='store_true', help='Set this flag to run a NEPS experiment.')
+    parser.add_argument('--neps.config_space', type=str, default='parameterized_cifar10_augmentation', choices=['parameterized_cifar10_augmentation', 'probability_augment'], help='Define which configspace to use.')
     parser.add_argument("--use_fixed_args", action="store_true", help="Flag to control whether to take arguments from yaml file as default or from arg parse")
     
     config = _parse_args(config_parser, parser)

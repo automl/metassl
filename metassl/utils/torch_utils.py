@@ -230,6 +230,17 @@ def check_and_save_checkpoint(config, ngpus_per_node, total_iter, epoch, model, 
             
             save_checkpoint(save_dct, is_best=False, filename=os.path.join(expt_dir, f'{checkpoint_name}_{epoch:04d}.pth.tar'))
 
+def save_checkpoint_baseline_code(epoch, model, optimizer, acc, filename, msg):
+    state = {
+        'epoch': epoch,
+        'arch': 'resnet18',
+        'state_dict': model.state_dict(),
+        'optimizer': optimizer.state_dict(),
+        'meters': acc
+        # 'top1_acc': acc
+    }
+    torch.save(state, filename)
+    print(msg)
 
 def hist_to_image(hist_dict, title=None):
     plt.figure()
@@ -296,10 +307,13 @@ def validate(val_loader, model, criterion, config, finetuning=False):
         for i, (images, target) in enumerate(val_loader):
             if config.expt.gpu is not None:
                 images = images.cuda(config.expt.gpu, non_blocking=True)
-                target = target.cuda(config.expt.gpu, non_blocking=True)
+            target = target.cuda(config.expt.gpu, non_blocking=True)
             
             # compute output
-            output = model(images, finetuning=finetuning)
+            if config.expt.is_non_grad_based and config.data.dataset == "CIFAR10" and config.model.arch == "baseline_resnet":
+                    output = model(images)
+            else:
+                output = model(images, finetuning=finetuning)
             loss = criterion(output, target)
             
             # measure accuracy and record loss
@@ -321,20 +335,29 @@ def validate(val_loader, model, criterion, config, finetuning=False):
     return top1.avg
 
 
-def adjust_learning_rate(optimizer, init_lr, epoch, total_epochs, warmup=False, multiplier=1.0):
+def adjust_learning_rate(optimizer, init_lr, epoch, total_epochs, warmup=False, multiplier=1.0, use_alternative_scheduler=False):
     """Decay the learning rate based on schedule; during warmup, increment the learning rate linearly (not used for fixed lr)"""
     if warmup:
         cur_lr = multiplier * init_lr * min(1., (float((epoch + 1) / total_epochs)))
     else:
         cur_lr = init_lr * 0.5 * (1. + math.cos(math.pi * epoch / total_epochs))
-    
-    for param_group in optimizer.param_groups:
-        if 'fix_lr' in param_group and param_group['fix_lr']:
+
+    if use_alternative_scheduler:
+        # The way it is done in the baseline code
+        schedule = [60, 80]
+        for milestone in schedule:
+            init_lr *= 0.1 if epoch >= milestone else 1.
+        for param_group in optimizer.param_groups:
             param_group['lr'] = init_lr
-            return init_lr
-        else:
-            param_group['lr'] = cur_lr
-            return cur_lr
+        return init_lr
+    else:
+        for param_group in optimizer.param_groups:
+            if 'fix_lr' in param_group and param_group['fix_lr']:
+                param_group['lr'] = init_lr
+                return init_lr
+            else:
+                param_group['lr'] = cur_lr
+                return cur_lr
 
 
 def accuracy(output, target, topk=(1,)):
