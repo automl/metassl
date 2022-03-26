@@ -1,7 +1,4 @@
-from typing import Optional, Callable, Tuple, Any
-
 import torchvision
-from PIL.Image import Image
 
 
 class Cifar10AlbumentationsPT(torchvision.datasets.CIFAR10):
@@ -16,6 +13,7 @@ class Cifar10AlbumentationsPT(torchvision.datasets.CIFAR10):
             image_b = self.transform(image=image)["image"]
             image = [image_a, image_b]
         return image, label
+
 
 class Cifar10AlbumentationsFT(torchvision.datasets.CIFAR10):
     def __init__(self, root="~/data/cifar10", train=True, download=True, transform=None):

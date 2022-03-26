@@ -4,10 +4,10 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-from PIL import ImageFilter
 import random
-import torch
+
 import torch.nn as nn
+from PIL import ImageFilter
 
 
 class TwoCropsTransform:
@@ -28,7 +28,7 @@ class TwoCropsTransform:
 class GaussianBlur(object):
     """Gaussian blur augmentation in SimCLR https://arxiv.org/abs/2002.05709"""
 
-    def __init__(self, sigma=[.1, 2.]):
+    def __init__(self, sigma=[0.1, 2.0]):
         self.sigma = sigma
 
     def __call__(self, x):
@@ -55,21 +55,25 @@ class SimSiam(nn.Module):
 
         # build a 3-layer projector
         prev_dim = self.encoder.fc.weight.shape[1]
-        self.encoder.fc = nn.Sequential(nn.Linear(prev_dim, prev_dim, bias=False),
-                                        nn.BatchNorm1d(prev_dim),
-                                        nn.ReLU(inplace=True),  # first layer
-                                        nn.Linear(prev_dim, prev_dim, bias=False),
-                                        nn.BatchNorm1d(prev_dim),
-                                        nn.ReLU(inplace=True),  # second layer
-                                        self.encoder.fc,
-                                        nn.BatchNorm1d(dim, affine=False))  # output layer
+        self.encoder.fc = nn.Sequential(
+            nn.Linear(prev_dim, prev_dim, bias=False),
+            nn.BatchNorm1d(prev_dim),
+            nn.ReLU(inplace=True),  # first layer
+            nn.Linear(prev_dim, prev_dim, bias=False),
+            nn.BatchNorm1d(prev_dim),
+            nn.ReLU(inplace=True),  # second layer
+            self.encoder.fc,
+            nn.BatchNorm1d(dim, affine=False),
+        )  # output layer
         self.encoder.fc[6].bias.requires_grad = False  # hack: not use bias as it is followed by BN
 
         # build a 2-layer predictor
-        self.predictor = nn.Sequential(nn.Linear(dim, pred_dim, bias=False),
-                                       nn.BatchNorm1d(pred_dim),
-                                       nn.ReLU(inplace=True),  # hidden layer
-                                       nn.Linear(pred_dim, dim))  # output layer
+        self.predictor = nn.Sequential(
+            nn.Linear(dim, pred_dim, bias=False),
+            nn.BatchNorm1d(pred_dim),
+            nn.ReLU(inplace=True),  # hidden layer
+            nn.Linear(pred_dim, dim),
+        )  # output layer
 
     def forward(self, x1, x2):
         """
