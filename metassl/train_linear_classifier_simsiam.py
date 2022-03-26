@@ -388,9 +388,7 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, hyperparamete
         )
     else:
         optimizer_ft = torch.optim.SGD(
-            params=model.module.classifier_head.parameters()
-            if config.expt.distributed
-            else model.parameters(),  # TODO: @Fabio - check together with optim_params_pt,
+            params=model.module.classifier_head.parameters(),
             lr=init_lr_ft,
             momentum=config.finetuning.momentum,
             weight_decay=config.finetuning.weight_decay,
