@@ -752,11 +752,7 @@ def pretrain(
     optimizer_pt.step()
 
     if get_gradients:
-        if config.expt.distributed:
-            backbone = model.module.backbone
-        else:
-            # TODO: @Fabio - This does not seem to work for CIFAR10
-            backbone = model.backbone
+        backbone = model.module.backbone
 
         for key, param in backbone.named_parameters():
             grad_tensor = param.grad.detach_().clone().flatten()
