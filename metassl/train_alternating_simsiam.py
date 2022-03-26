@@ -276,11 +276,15 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
         torch.cuda.set_device(config.expt.gpu)
         model = model.cuda(config.expt.gpu)
         # comment out the following line for debugging
-        raise NotImplementedError("Only DistributedDataParallel is supported.")
+        # TODO: delete line below (metassl code)
+        # raise NotImplementedError("Only DistributedDataParallel or gpu mode is supported.")
     else:
+        # DataParallel will divide and allocate batch_size to all available GPUs
+        model = torch.nn.DataParallel(model).cuda()
         # AllGather implementation (batch shuffle, queue update, etc.) in
         # this code only supports DistributedDataParallel.
-        raise NotImplementedError("Only DistributedDataParallel is supported.")
+        # TODO: delete line below (metassl code)
+        # raise NotImplementedError("Only DistributedDataParallel or gpu mode is supported.")
 
     # define loss function (criterion) and optimizer
     criterion_pt = nn.CosineSimilarity(dim=1).cuda(config.expt.gpu)
@@ -295,7 +299,8 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
         },
     ]
 
-    print(f"world size: {torch.distributed.get_world_size()}")
+    if config.expt.distributed:
+        print(f"world size: {torch.distributed.get_world_size()}")
     print(f"finetuning bs: {config.finetuning.batch_size}")
     print(f"finetuning lr: {config.finetuning.lr}")
     print(f"init_lr_ft: {init_lr_ft}")
