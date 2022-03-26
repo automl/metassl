@@ -139,7 +139,7 @@ def get_train_valid_loader(
                 train_dataset = Cifar10AlbumentationsPT(
                     root="datasets/CIFAR10",
                     train=True,
-                    download=download,
+                    download=True,
                     transform=train_transform,
                 )
             else:
@@ -149,7 +149,7 @@ def get_train_valid_loader(
                     train_dataset = Cifar10AlbumentationsFT(
                         root="datasets/CIFAR10",
                         train=True,
-                        download=download,
+                        download=True,
                         transform=train_transform,
                     )
                 # TODO: @Diane - Refactor
@@ -157,14 +157,14 @@ def get_train_valid_loader(
                     train_dataset = torchvision.datasets.CIFAR10(
                         root="datasets/CIFAR10",
                         train=True,
-                        download=download,
+                        download=True,
                         transform=train_transform,
                     )
         else:
             train_dataset = torchvision.datasets.CIFAR10(
                 root="datasets/CIFAR10",
                 train=True,
-                download=download,
+                download=True,
                 transform=train_transform,
             )
         # valid_dataset
@@ -172,7 +172,7 @@ def get_train_valid_loader(
         valid_dataset = torchvision.datasets.CIFAR10(
             root="datasets/CIFAR10",
             train=True,
-            download=download,
+            download=True,
             transform=valid_transform,
         )
     else:
@@ -317,7 +317,7 @@ def get_test_loader(
         )
     elif dataset_name == "CIFAR10":
         dataset = torchvision.datasets.CIFAR10(
-            root="datasets/CIFAR10", train=False, download=download, transform=transform
+            root="datasets/CIFAR10", train=False, download=True, transform=transform
         )
     else:
         raise NotImplementedError("Dataset not supported.")
