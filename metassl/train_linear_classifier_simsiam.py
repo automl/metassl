@@ -433,7 +433,10 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, hyperparamete
 
                 model.load_state_dict(checkpoint["state_dict"])
             else:
-                print(f"=> no checkpoint found at '{config.expt.ssl_model_checkpoint_path}'")
+                # print(f"=> no checkpoint found at '{config.expt.ssl_model_checkpoint_path}'")
+                raise Exception(
+                    f"=> no checkpoint found at '{config.expt.ssl_model_checkpoint_path}'"
+                )
     # ----------------------------------------------------------------------------------------------
 
     if config.finetuning.valid_size > 0:
