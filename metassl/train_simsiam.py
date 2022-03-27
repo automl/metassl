@@ -37,7 +37,6 @@ from metassl.hyperparameter_optimization.configspaces import (
     get_parameterized_cifar10_augmentation_with_solarize_configspace,
     get_parameterized_cifar10_augmentation_with_solarize_configspace_with_user_prior,
 )
-from metassl.utils.criterion import SimSiamLoss
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -333,17 +332,11 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
 
     # define loss function (criterion) and optimizer
 
-    if config.simsiam.use_baselines_loss:
-        # choices=['simplified', 'original'],
-        # help='do the same thing but simplified version is much faster
-        loss_version = "simplified"
-        criterion_pt = SimSiamLoss(loss_version)
-    else:
-        criterion_pt = nn.CosineSimilarity(dim=1).cuda(
-            config.expt.gpu
-        )  # TODO: @Diane - Check out and compare against baseline code
-        # TODO: delete as it is unused?
-        # criterion_ft = nn.CrossEntropyLoss().cuda(config.expt.gpu)
+    criterion_pt = nn.CosineSimilarity(dim=1).cuda(
+        config.expt.gpu
+    )  # TODO: @Diane - Check out and compare against baseline code
+    # TODO: delete as it is unused?
+    # criterion_ft = nn.CrossEntropyLoss().cuda(config.expt.gpu)
 
     if (
         config.expt.distributed
@@ -702,12 +695,8 @@ def pretrain(
     p1, p2, z1, z2 = model(x1=images_pt[0], x2=images_pt[1], finetuning=False)
 
     # compute losses
-    if config.simsiam.use_baselines_loss:
-        loss_pt = criterion_pt(z1, z2, p1, p2)
-        losses_pt.update(loss_pt.item(), images_pt[0].size(0))
-    else:
-        loss_pt = -(criterion_pt(p1, z2).mean() + criterion_pt(p2, z1).mean()) * 0.5
-        losses_pt.update(loss_pt.item(), images_pt[0].size(0))
+    loss_pt = -(criterion_pt(p1, z2).mean() + criterion_pt(p2, z1).mean()) * 0.5
+    losses_pt.update(loss_pt.item(), images_pt[0].size(0))
 
     # compute gradient and do SGD step
     optimizer_pt.zero_grad()
@@ -1076,11 +1065,6 @@ if __name__ == "__main__":
         "--simsiam.fix_pred_lr",
         action="store_false",
         help="fix learning rate for the predictor (default: True",
-    )
-    parser.add_argument(
-        "--simsiam.use_baselines_loss",
-        action="store_true",
-        help="Set this flag to use the loss from the baseline code (PT)",
     )
 
     # parser.add_argument('--bohb', default="bohb", type=str, metavar='N')
