@@ -70,7 +70,6 @@ model:
   model_type:  "resnet50"                  # supported models: all torchvision ResNets
   seed:        123
   turn_off_bn: False                     # turns off all batch norm instances in the model
-  arch:        "baseline_resnet"         # Select architecture for CIFAR10; choices=["our_resnet", "tv_resnet", "baseline_resnet"]
 
 #######################################
 ###       Data Configuration        ###

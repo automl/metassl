@@ -60,7 +60,6 @@ try:
         check_and_save_checkpoint,
         deactivate_bn,
         get_newest_model,
-        save_checkpoint_baseline_code,
     )
 
 except ImportError:
@@ -82,7 +81,6 @@ except ImportError:
         check_and_save_checkpoint,
         deactivate_bn,
         get_newest_model,
-        save_checkpoint_baseline_code,
     )
 
 model_names = sorted(
@@ -257,30 +255,14 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
     # create model
     # TODO: @Diane - Check out and compare against baseline code
     if config.data.dataset == "CIFAR10":
-        if config.model.arch == "tv_resnet":
-            print(f"=> creating model {config.model.model_type}")
-            model = SimSiam(
-                models.__dict__[config.model.model_type],
-                config.simsiam.dim,
-                config.simsiam.pred_dim,
-                num_classes=10,
-            )
-        elif config.model.arch == "our_resnet":
-            # Use model from our model folder instead from torchvision!
-            print("=> creating model resnet18")
-            model = SimSiam(
-                our_cifar_resnets.resnet18,
-                config.simsiam.dim,
-                config.simsiam.pred_dim,
-                num_classes=10,
-            )
-        elif config.model.arch == "baseline_resnet":
-            from metassl.utils.baseline_simsiam import SimSiam as BaselineSimSiam
-
-            config.simsiam.pred_dim = 2048
-            model = BaselineSimSiam()
-        else:
-            raise NotImplementedError
+        # Use model from our model folder instead from torchvision!
+        print("=> creating model resnet18")
+        model = SimSiam(
+            our_cifar_resnets.resnet18,
+            config.simsiam.dim,
+            config.simsiam.pred_dim,
+            num_classes=10,
+        )
 
     else:
         print(f"=> creating model {config.model.model_type}")
@@ -557,28 +539,18 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
         elif (config.expt.save_model and epoch % config.expt.save_model_frequency == 0) or (
             config.expt.save_model and is_last_epoch
         ):
-            if config.data.dataset == "CIFAR10" and config.model.arch == "baseline_resnet":
-                checkpoint_name = "checkpoint"
-                save_checkpoint_baseline_code(
-                    epoch=epoch,
-                    model=model,
-                    optimizer=optimizer_pt,
-                    acc=meters,
-                    filename=os.path.join(expt_dir, f"{checkpoint_name}_{epoch:04d}.pth.tar"),
-                    msg="Saving...",
-                )
-            else:
-                check_and_save_checkpoint(
-                    config=config,
-                    ngpus_per_node=ngpus_per_node,
-                    total_iter=total_iter,
-                    epoch=epoch,
-                    model=model,
-                    optimizer_pt=optimizer_pt,
-                    optimizer_ft=None,
-                    expt_dir=expt_dir,
-                    meters=meters,
-                )
+
+            check_and_save_checkpoint(
+                config=config,
+                ngpus_per_node=ngpus_per_node,
+                total_iter=total_iter,
+                epoch=epoch,
+                model=model,
+                optimizer_pt=optimizer_pt,
+                optimizer_ft=None,
+                expt_dir=expt_dir,
+                meters=meters,
+            )
 
     # shut down writer at end of training
     if config.expt.rank == 0:
@@ -650,14 +622,9 @@ def train_one_epoch(
             get_gradients=get_gradients,
         )
 
-        if config.data.dataset == "CIFAR10" and config.model.arch == "baseline_resnet":
-            z_std_normalized = np.std(
-                z1.cpu().detach().numpy() / (torch.linalg.norm(z1, 2).cpu().detach().numpy()) + 1e-9
-            )
-        else:
-            z_std_normalized = np.std(
-                z1.cpu().numpy() / (torch.linalg.norm(z1, 2).cpu().numpy()) + 1e-9
-            )
+        z_std_normalized = np.std(
+            z1.cpu().numpy() / (torch.linalg.norm(z1, 2).cpu().numpy()) + 1e-9
+        )
         target_std_meter.update(z_std_normalized)
 
         grads = {
@@ -732,10 +699,7 @@ def pretrain(
 
     # pre-training
     # compute outputs
-    if config.data.dataset == "CIFAR10" and config.model.arch == "baseline_resnet":
-        p1, p2, z1, z2 = model(im_aug1=images_pt[0], im_aug2=images_pt[1])
-    else:
-        p1, p2, z1, z2 = model(x1=images_pt[0], x2=images_pt[1], finetuning=False)
+    p1, p2, z1, z2 = model(x1=images_pt[0], x2=images_pt[1], finetuning=False)
 
     # compute losses
     if config.simsiam.use_baselines_loss:
@@ -1083,13 +1047,6 @@ if __name__ == "__main__":
         "--model.turn_off_bn",
         action="store_true",
         help="turns off all batch norm instances in the model",
-    )
-    parser.add_argument(
-        "--model.arch",
-        type=str,
-        default="baseline_resnet",
-        choices=["our_resnet", "tv_resnet", "baseline_resnet"],
-        help="Select architecture for CIFAR10",
     )
 
     parser.add_argument("--data", default="data", type=str, metavar="N")
