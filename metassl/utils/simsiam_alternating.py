@@ -17,7 +17,7 @@ class SimSiam(nn.Module):
 
         # create the encoder
         # num_classes is the output fc dimension, zero-initialize last BNs
-        self.backbone: ResNet = base_encoder(num_classes=dim, zero_init_residual=True)
+        self.backbone: ResNet = base_encoder(num_classes=dim, zero_init_residual=False)
         prev_dim = self.backbone.fc.weight.shape[1]
         self.backbone.fc = torch.nn.Identity()
 
