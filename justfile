@@ -30,16 +30,16 @@ format:
 # ---------------------------------------------------------------------------------------
 
 # Submit SimSiam baseline on CIFAR10 - PT
-@cifar10_baseline_pt EXPERIMENT_NAME:
+@cifar10_baseline_pt EXPERIMENT_NAME SEED:
   #!/usr/bin/env bash
   mkdir -p /work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/
-  sbatch --output=/work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%N.%j.err_out --error=/work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%N.%j.err_out --export=EXPERIMENT_NAME={{EXPERIMENT_NAME}} cluster/submit_cifar10_baseline_pt.sh
+  sbatch --output=/work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%N.%j.err_out --error=/work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%N.%j.err_out --export=EXPERIMENT_NAME={{EXPERIMENT_NAME}},SEED={{SEED}} cluster/submit_cifar10_baseline_pt.sh
 
 # Submit SimSiam baseline on CIFAR10 - FT
-@cifar10_baseline_ft EXPERIMENT_NAME:
+@cifar10_baseline_ft EXPERIMENT_NAME SEED:
   #!/usr/bin/env bash
   mkdir -p /work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/
-  sbatch --output=/work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%N.%j.err_out --error=/work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%N.%j.err_out --export=EXPERIMENT_NAME={{EXPERIMENT_NAME}} cluster/submit_cifar10_baseline_ft.sh
+  sbatch --output=/work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%N.%j.err_out --error=/work/dlclarge2/wagnerd-metassl-experiments/metassl/CIFAR10/{{EXPERIMENT_NAME}}/cluster_oe/%x.%N.%j.err_out --export=EXPERIMENT_NAME={{EXPERIMENT_NAME}},SEED={{SEED}} cluster/submit_cifar10_baseline_ft.sh
 
 # Submit NEPS
 @neps EXPERIMENT_NAME:
