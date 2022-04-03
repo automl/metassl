@@ -3,10 +3,12 @@ from pathlib import Path
 import fanova.visualizer
 import hpbandster.core.result as hpres
 import numpy as np
-
 from fanova import fANOVA
 
-from metassl.hyperparameter_optimization.configspaces import get_color_jitter_strengths_configspace, get_probability_augment_configspace
+# from metassl.hyperparameter_optimization.configspaces import (
+#     get_color_jitter_strengths_configspace,
+#     get_probability_augment_configspace,
+# )
 
 
 def get_fanova_plots(path, config_space):
@@ -39,5 +41,5 @@ def get_fanova_plots(path, config_space):
 
 if __name__ == "__main__":
     result_path = "/home/wagn3rd/Projects/metassl/results/diane/BO_cifar10_25p_paug"
-    config_space = get_probability_augment_configspace()
+    config_space = None  # get_probability_augment_configspace()
     get_fanova_plots(path=result_path, config_space=config_space)

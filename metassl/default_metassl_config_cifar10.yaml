@@ -73,7 +73,6 @@ model:
   model_type:  "resnet18"                # supported models: all torchvision ResNets
   seed:        123
   turn_off_bn: False                     # turns off all batch norm instances in the model
-  arch:        "baseline_resnet"              # Select architecture for CIFAR10; choices=["our_resnet", "tv_resnet", "baseline_resnet"]
 
 
 #######################################
@@ -92,7 +91,6 @@ simsiam:
   dim:         2048                                  # feature dimension (default: 2048)
   pred_dim:    512                              # hidden dimension of the predictor (default: 512)
   fix_pred_lr: True                        # Fix learning rate for the predictor
-  use_baselines_loss: False                # Set this flag to use the loss from the baseline code (PT)
 
 ########################################
 ####       Learn Augmentations       ###

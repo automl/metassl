@@ -2,12 +2,12 @@ from torch import nn
 
 
 class SimSiamLoss(nn.Module):
-    def __init__(self, version='simplified'):
+    def __init__(self, version="simplified"):
         super().__init__()
         self.ver = version
 
     def asymmetric_loss(self, p, z):
-        if self.ver == 'original':
+        if self.ver == "original":
             z = z.detach()  # stop gradient
 
             p = nn.functional.normalize(p, dim=1)
@@ -15,9 +15,9 @@ class SimSiamLoss(nn.Module):
 
             return -(p * z).sum(dim=1).mean()
 
-        elif self.ver == 'simplified':
+        elif self.ver == "simplified":
             z = z.detach()  # stop gradient
-            return - nn.functional.cosine_similarity(p, z, dim=-1).mean()
+            return -nn.functional.cosine_similarity(p, z, dim=-1).mean()
 
     def forward(self, z1, z2, p1, p2):
 

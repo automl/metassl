@@ -1,13 +1,13 @@
-from PIL import ImageFilter
-import random
 import torch
 import torch.nn as nn
 from torchvision.models import ResNet
+
 
 class SimSiam(nn.Module):
     """
     Build a SimSiam model.
     """
+
     def __init__(self, base_encoder, dim=2048, pred_dim=512, num_classes=1000):
         """
         dim: feature dimension (default: 2048)
@@ -17,31 +17,35 @@ class SimSiam(nn.Module):
 
         # create the encoder
         # num_classes is the output fc dimension, zero-initialize last BNs
-        self.backbone: ResNet = base_encoder(num_classes=dim, zero_init_residual=True)
+        self.backbone: ResNet = base_encoder(num_classes=dim, zero_init_residual=False)
         prev_dim = self.backbone.fc.weight.shape[1]
         self.backbone.fc = torch.nn.Identity()
 
         # build a 3-layer projector
-        self.encoder_head = nn.Sequential(nn.Linear(prev_dim, prev_dim, bias=False),
-                                          nn.BatchNorm1d(prev_dim),
-                                          nn.ReLU(inplace=True),  # first layer
-                                          nn.Linear(prev_dim, prev_dim, bias=False),
-                                          nn.BatchNorm1d(prev_dim),
-                                          nn.ReLU(inplace=True),  # second layer
-                                          nn.Linear(prev_dim, dim),  # output layer
-                                          nn.BatchNorm1d(dim, affine=False)
-                                          )
-        self.encoder_head[6].bias.requires_grad = False  # hack: not use bias as it is followed by BN
+        self.encoder_head = nn.Sequential(
+            nn.Linear(prev_dim, prev_dim, bias=False),
+            nn.BatchNorm1d(prev_dim),
+            nn.ReLU(inplace=True),  # first layer
+            nn.Linear(prev_dim, prev_dim, bias=False),
+            nn.BatchNorm1d(prev_dim),
+            nn.ReLU(inplace=True),  # second layer
+            nn.Linear(prev_dim, dim),  # output layer
+            nn.BatchNorm1d(dim, affine=False),
+        )
+        self.encoder_head[
+            6
+        ].bias.requires_grad = False  # hack: not use bias as it is followed by BN
 
         # build a 2-layer predictor
-        self.predictor = nn.Sequential(nn.Linear(dim, pred_dim, bias=False),
-                                        nn.BatchNorm1d(pred_dim),
-                                        nn.ReLU(inplace=True), # hidden layer
-                                        nn.Linear(pred_dim, dim)  # output layer
-                                       )
+        self.predictor = nn.Sequential(
+            nn.Linear(dim, pred_dim, bias=False),
+            nn.BatchNorm1d(pred_dim),
+            nn.ReLU(inplace=True),  # hidden layer
+            nn.Linear(pred_dim, dim),  # output layer
+        )
 
         self.classifier_head = nn.Linear(prev_dim, num_classes)
-        
+
         # from facebook SimSiam code
         self.classifier_head.weight.data.normal_(mean=0.0, std=0.01)
         self.classifier_head.bias.data.zero_()
@@ -66,7 +70,7 @@ class SimSiam(nn.Module):
             z1 = self.encoder_head(emb1)
             z2 = self.encoder_head(emb2)
 
-            p1 = self.predictor(z1) # NxC
-            p2 = self.predictor(z2) # NxC
+            p1 = self.predictor(z1)  # NxC
+            p2 = self.predictor(z2)  # NxC
 
             return p1, p2, z1.detach(), z2.detach()

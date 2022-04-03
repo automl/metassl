@@ -1,14 +1,11 @@
-from tqdm import tqdm
-import torch.nn.functional as F
 import torch
+import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
-from torch.utils.data.distributed import DistributedSampler
-from torch.utils.data.sampler import SubsetRandomSampler
-
+from tqdm import tqdm
 
 try:
-    from metassl.utils.data import normalize_cifar10, normalize_imagenet, normalize_cifar100
+    from metassl.utils.data import normalize_cifar10, normalize_cifar100, normalize_imagenet
     from metassl.utils.imagenet import ImageNet
 except ImportError:
     from metassl.utils.data import normalize_cifar10, normalize_imagenet
@@ -24,15 +21,21 @@ def get_knn_data_loaders(batch_size, num_workers, dataset, download=True):
     @param dataset Cifar10/ImageNet/Cifar100
     """
     if dataset == "CIFAR10":
-        test_transform = transforms.Compose([
-            transforms.ToTensor(),
-            normalize_cifar10])
+        test_transform = transforms.Compose([transforms.ToTensor(), normalize_cifar10])
 
-        memory_data = torchvision.datasets.CIFAR10(root='datasets/CIFAR10', train=True,
-                                                   transform=test_transform, download=download)
-        test_data = torchvision.datasets.CIFAR10(root='datasets/CIFAR10', train=False,
-                                                 transform=test_transform, download=download)
-    elif dataset== "ImageNet":
+        memory_data = torchvision.datasets.CIFAR10(
+            root="datasets/CIFAR10",
+            train=True,
+            transform=test_transform,
+            download=download,
+        )
+        test_data = torchvision.datasets.CIFAR10(
+            root="datasets/CIFAR10",
+            train=False,
+            transform=test_transform,
+            download=download,
+        )
+    elif dataset == "ImageNet":
 
         # taken from get_test_loader in data.py
         test_transform = transforms.Compose(
@@ -48,67 +51,98 @@ def get_knn_data_loaders(batch_size, num_workers, dataset, download=True):
         root = "/data/datasets/ImageNet/imagenet-pytorch"
         # root = "/data/datasets/ILSVRC2012"
         # load the dataset
-        memory_data = ImageNet(root=root, split='train',
-                                 transform=test_transform,
-                                 ignore_archive=True,
+        memory_data = ImageNet(
+            root=root,
+            split="train",
+            transform=test_transform,
+            ignore_archive=True,
         )
         # load the dataset
         test_data = ImageNet(
-            root=root, split="val",
+            root=root,
+            split="val",
             transform=test_transform,
             ignore_archive=True,
         )
     elif dataset == "CIFAR100":
         # adding for the sake of completeness
-        test_transform = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                normalize_cifar100
-            ]
+        test_transform = transforms.Compose([transforms.ToTensor(), normalize_cifar100])
+        memory_data = torchvision.datasets.CIFAR100(
+            root="datasets/CIFAR100",
+            train=True,
+            transform=test_transform,
+            download=download,
         )
-        memory_data = torchvision.datasets.CIFAR100(root='datasets/CIFAR100', train=True,
-                                                   transform=test_transform, download=download)
-        test_data = torchvision.datasets.CIFAR100(root='datasets/CIFAR100', train=False,
-                                                 transform=test_transform, download=download)
+        test_data = torchvision.datasets.CIFAR100(
+            root="datasets/CIFAR100",
+            train=False,
+            transform=test_transform,
+            download=download,
+        )
     else:
         # not supported
-        raise ValueError('invalid dataset name=%s' % dataset)
+        raise ValueError("invalid dataset name=%s" % dataset)
 
-    memory_loader = torch.utils.data.DataLoader(memory_data, batch_size=batch_size, shuffle=False,
-                                                num_workers=num_workers, pin_memory=True)
-    test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, shuffle=False,
-                                              num_workers=num_workers, pin_memory=True)
+    memory_loader = torch.utils.data.DataLoader(
+        memory_data,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+    )
+    test_loader = torch.utils.data.DataLoader(
+        test_data,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+    )
 
     return memory_loader, test_loader
 
 
-# Code from https://colab.research.google.com/github/facebookresearch/moco/blob/colab-notebook/colab/moco_cifar10_demo.ipynb
+# fmt: off
+# Code from https://colab.research.google.com/github/facebookresearch/moco/blob/colab-notebook/colab/moco_cifar10_demo.ipynb  # noqa: E501, E241
+# fmt: on
 # test using a knn monitor
-def knn_classifier(net, batch_size, workers, dataset, k=200, t=0.1, hide_progress=False, download=False):
+def knn_classifier(
+    net, batch_size, workers, dataset, k=200, t=0.1, hide_progress=False, download=False
+):
     # Moco used 200
     """
-     @param net: Model backbone. Encoder in our case
-     @workers
-     @param dataset: ImageNet CIFAR10 CIFAR100
-     @param k: top neighbors to find. 200 is for ImageNet
+    @param net: Model backbone. Encoder in our case
+    @workers
+    @param dataset: ImageNet CIFAR10 CIFAR100
+    @param k: top neighbors to find. 200 is for ImageNet
     """
-    # separate loaders used since the training and validation loaders used during pretraining are shuffled.
-    memory_data_loader, test_data_loader = get_knn_data_loaders(batch_size=batch_size, num_workers=workers, dataset=dataset, download=download)
+    # separate loaders used since the training and validation loaders used during pretraining are
+    # shuffled.
+    memory_data_loader, test_data_loader = get_knn_data_loaders(
+        batch_size=batch_size, num_workers=workers, dataset=dataset, download=download
+    )
     net.eval()
     classes = len(memory_data_loader.dataset.classes)
-    total_top1, total_top5, total_num, feature_bank = 0.0, 0.0, 0, []
+    # total_top1, total_top5, total_num, feature_bank = 0.0, 0.0, 0, []
+    total_top1, total_num, feature_bank = 0.0, 0, []
     with torch.no_grad():
         # generate feature bank
-        for data, target in tqdm(memory_data_loader, desc='Feature extracting', leave=False, disable=hide_progress):
+        for data, target in tqdm(
+            memory_data_loader,
+            desc="Feature extracting",
+            leave=False,
+            disable=hide_progress,
+        ):
             feature = net(data.cuda(non_blocking=True))
             feature = F.normalize(feature, dim=1)
             feature_bank.append(feature)
         # [D, N]
         feature_bank = torch.cat(feature_bank, dim=0).t().contiguous()
         # [N]
-        feature_labels = torch.tensor(memory_data_loader.dataset.targets, device=feature_bank.device)
+        feature_labels = torch.tensor(
+            memory_data_loader.dataset.targets, device=feature_bank.device
+        )
         # loop test data to predict the label by weighted knn search
-        test_bar = tqdm(test_data_loader, desc='kNN', disable=hide_progress)
+        test_bar = tqdm(test_data_loader, desc="kNN", disable=hide_progress)
         for data, target in test_bar:
             data, target = data.cuda(non_blocking=True), target.cuda(non_blocking=True)
             feature = net(data)
@@ -118,12 +152,13 @@ def knn_classifier(net, batch_size, workers, dataset, k=200, t=0.1, hide_progres
 
             total_num += data.size(0)
             total_top1 += (pred_labels[:, 0] == target).float().sum().item()
-            test_bar.set_postfix({'Accuracy': total_top1 / total_num * 100})
+            test_bar.set_postfix({"Accuracy": total_top1 / total_num * 100})
     return total_top1 / total_num * 100
 
 
 # knn monitor as in InstDisc https://arxiv.org/abs/1805.01978
-# implementation follows http://github.com/zhirongw/lemniscate.pytorch and https://github.com/leftthomas/SimCLR
+# implementation follows
+# http://github.com/zhirongw/lemniscate.pytorch and https://github.com/leftthomas/SimCLR
 def knn_predict(feature, feature_bank, feature_labels, classes, knn_k, knn_t):
     # compute cos similarity between each feature vector and feature bank ---> [B, N]
     sim_matrix = torch.mm(feature, feature_bank)
@@ -138,7 +173,10 @@ def knn_predict(feature, feature_bank, feature_labels, classes, knn_k, knn_t):
     # [B*K, C]
     one_hot_label = one_hot_label.scatter(dim=-1, index=sim_labels.view(-1, 1), value=1.0)
     # weighted score ---> [B, C]
-    pred_scores = torch.sum(one_hot_label.view(feature.size(0), -1, classes) * sim_weight.unsqueeze(dim=-1), dim=1)
+    pred_scores = torch.sum(
+        one_hot_label.view(feature.size(0), -1, classes) * sim_weight.unsqueeze(dim=-1),
+        dim=1,
+    )
 
     pred_labels = pred_scores.argsort(dim=-1, descending=True)
     return pred_labels

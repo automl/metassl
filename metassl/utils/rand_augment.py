@@ -1,29 +1,26 @@
-# Code based on:  https://github.com/ildoonet/pytorch-randaugment/blob/master/RandAugment/augmentations.py
+# Code based on:
+# https://github.com/ildoonet/pytorch-randaugment/blob/master/RandAugment/augmentations.py
 # Code adapted to work also for segmentation
 import random
+
 import PIL
 import PIL.ImageDraw
 import PIL.ImageEnhance
 import PIL.ImageOps
 
-from albumentations import CenterCrop
-from albumentations import Compose
-from albumentations import HorizontalFlip
-from albumentations import PadIfNeeded
-from albumentations import RandomScale
-from albumentations import Rotate
-
-########################################################################################################################
+####################################################################################################
 # IDENTITY
-########################################################################################################################
+####################################################################################################
+
 
 def Identity(data, _, __):
     return data
 
 
-########################################################################################################################
+####################################################################################################
 # COLOR OPS
-########################################################################################################################
+####################################################################################################
+
 
 def AutoContrast(data, v, is_segmentation):
     if is_segmentation:
@@ -95,9 +92,10 @@ def Sharpness(data, v, is_segmentation):  # [0.1,1.9]
         return PIL.ImageEnhance.Sharpness(data).enhance(v)
 
 
-########################################################################################################################
+####################################################################################################
 # GEOMETRIC OPS
-########################################################################################################################
+####################################################################################################
+
 
 def ShearX(data, v, is_segmentation):  # [-0.3, 0.3]
     assert -0.3 <= v <= 0.3
@@ -112,7 +110,9 @@ def ShearX(data, v, is_segmentation):  # [-0.3, 0.3]
         )
         return image, mask
     else:
-        return data.transform(data[0].size, PIL.Image.AFFINE, (1, v, 0, 0, 1, 0), PIL.Image.BILINEAR)
+        return data.transform(
+            data[0].size, PIL.Image.AFFINE, (1, v, 0, 0, 1, 0), PIL.Image.BILINEAR
+        )
 
 
 def ShearY(data, v, is_segmentation):  # [-0.3, 0.3]
@@ -178,7 +178,9 @@ def Rotate(data, v, is_segmentation):  # [-30, 30]
     else:
         return data.rotate(v)
 
-########################################################################################################################
+
+####################################################################################################
+
 
 def augment_list():  # default opterations used in RandAugment paper
     augment_list = [

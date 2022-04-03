@@ -1,5 +1,6 @@
 from torchvision.datasets.imagenet import *
 
+
 class ImageNet(ImageFolder):
     """`ImageNet <http://image-net.org/>`_ 2012 Classification Dataset.
     Copied from torchvision, besides warning below.
@@ -19,19 +20,24 @@ class ImageNet(ImageFolder):
         imgs (list): List of (image path, class_index) tuples
         targets (list): The class_index value for each image in the dataset
         WARN::
-        This is the same ImageNet class as in torchvision.datasets.imagenet, but it has the `ignore_archive` argument.
+        This is the same ImageNet class as in torchvision.datasets.imagenet, but it has the
+        `ignore_archive` argument.
         This allows us to only copy the unzipped files before training.
     """
 
-    def __init__(self, root, split='train', download=None, ignore_archive=False, **kwargs):
+    def __init__(self, root, split="train", download=None, ignore_archive=False, **kwargs):
         if download is True:
-            msg = ("The dataset is no longer publicly accessible. You need to "
-                   "download the archives externally and place them in the root "
-                   "directory.")
+            msg = (
+                "The dataset is no longer publicly accessible. You need to "
+                "download the archives externally and place them in the root "
+                "directory."
+            )
             raise RuntimeError(msg)
         elif download is False:
-            msg = ("The use of the download flag is deprecated, since the dataset "
-                   "is no longer publicly accessible.")
+            msg = (
+                "The use of the download flag is deprecated, since the dataset "
+                "is no longer publicly accessible."
+            )
             warnings.warn(msg, RuntimeWarning)
 
         root = self.root = os.path.expanduser(root)
@@ -47,18 +53,16 @@ class ImageNet(ImageFolder):
         self.wnids = self.classes
         self.wnid_to_idx = self.class_to_idx
         self.classes = [wnid_to_classes[wnid] for wnid in self.wnids]
-        self.class_to_idx = {cls: idx
-                             for idx, clss in enumerate(self.classes)
-                             for cls in clss}
+        self.class_to_idx = {cls: idx for idx, clss in enumerate(self.classes) for cls in clss}
 
     def parse_archives(self):
         if not check_integrity(os.path.join(self.root, META_FILE)):
             parse_devkit_archive(self.root)
 
         if not os.path.isdir(self.split_folder):
-            if self.split == 'train':
+            if self.split == "train":
                 parse_train_archive(self.root)
-            elif self.split == 'val':
+            elif self.split == "val":
                 parse_val_archive(self.root)
 
     @property

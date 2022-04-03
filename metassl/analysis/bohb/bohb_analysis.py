@@ -1,8 +1,11 @@
-# Code based on: https://automl.github.io/HpBandSter/build/html/auto_examples/plot_example_6_analysis.html
+# Code based on:
+# https://automl.github.io/HpBandSter/build/html/auto_examples/plot_example_6_analysis.html
 import os
+
 import hpbandster.core.result as hpres
 import hpbandster.visualization as hpvis
 import matplotlib.pyplot as plt
+
 
 def make_analysis(path):
     # load the example run from the log files
