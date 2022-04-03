@@ -32,6 +32,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from metassl.hyperparameter_optimization.configspaces import (
     get_parameterized_cifar10_augmentation_configspace,
+    get_parameterized_cifar10_augmentation_configspace_with_user_prior,
     get_parameterized_cifar10_augmentation_with_solarize_configspace,
     get_parameterized_cifar10_augmentation_with_solarize_configspace_with_user_prior,
 )
@@ -761,6 +762,16 @@ if __name__ == "__main__":
         # pipeline_space = dict(learning_rate=neps.FloatParameter(lower=0, upper=1))
         if config.neps.config_space == "parameterized_cifar10_augmentation":
             pipeline_space = get_parameterized_cifar10_augmentation_configspace()
+            # fmt: off
+            if config.neps.is_user_prior:
+                pipeline_space = (
+                    get_parameterized_cifar10_augmentation_configspace_with_user_prior()  # noqa: E501, E241
+                )
+            else:
+                pipeline_space = (
+                    get_parameterized_cifar10_augmentation_configspace()
+                )
+            # fmt: on
         elif config.neps.config_space == "parameterized_cifar10_augmentation_with_solarize":
             # fmt: off
             if config.neps.is_user_prior:
@@ -781,7 +792,7 @@ if __name__ == "__main__":
             run_pipeline=main,
             pipeline_space=pipeline_space,
             working_directory=expt_dir,
-            max_evaluations_total=200,
+            max_evaluations_total=500,
             max_evaluations_per_run=1,
         )
         # max_evaluations_per_run=1

@@ -299,6 +299,46 @@ def get_parameterized_cifar10_augmentation_with_solarize_configspace():
     return pipeline_space
 
 
+def get_parameterized_cifar10_augmentation_configspace_with_user_prior():
+    import neps
+
+    # Probabilities
+    p_colorjitter = neps.FloatParameter(
+        lower=0, upper=1, log=False, default=0.8, default_confidence="medium"
+    )
+    p_grayscale = neps.FloatParameter(
+        lower=0, upper=1, log=False, default=0.2, default_confidence="medium"
+    )
+    p_horizontal_flip = neps.FloatParameter(
+        lower=0, upper=1, log=False, default=0.5, default_confidence="medium"
+    )
+
+    # Strengths and Thresholds
+    brightness_strength = neps.FloatParameter(
+        lower=0, upper=1.5, log=False, default=0.4, default_confidence="medium"
+    )
+    contrast_strength = neps.FloatParameter(
+        lower=0, upper=1.5, log=False, default=0.4, default_confidence="medium"
+    )
+    saturation_strength = neps.FloatParameter(
+        lower=0, upper=1.5, log=False, default=0.4, default_confidence="medium"
+    )
+    hue_strength = neps.FloatParameter(
+        lower=0, upper=0.5, log=False, default=0.1, default_confidence="medium"
+    )
+
+    pipeline_space = dict(
+        p_colorjitter=p_colorjitter,
+        p_grayscale=p_grayscale,
+        p_horizontal_flip=p_horizontal_flip,
+        brightness_strength=brightness_strength,
+        contrast_strength=contrast_strength,
+        saturation_strength=saturation_strength,
+        hue_strength=hue_strength,
+    )
+    return pipeline_space
+
+
 def get_parameterized_cifar10_augmentation_with_solarize_configspace_with_user_prior():
     import neps
 
