@@ -80,12 +80,6 @@ except ImportError:
         get_newest_model,
     )
 
-model_names = sorted(
-    name
-    for name in models.__dict__
-    if name.islower() and not name.startswith("__") and callable(models.__dict__[name])
-)
-
 
 def main(working_directory, config, bohb_infos=None, **hyperparameters):
     config = deepcopy(
