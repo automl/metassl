@@ -175,6 +175,27 @@ def get_train_valid_loader(
             download=True,
             transform=valid_transform,
         )
+    elif dataset_name == "CIFAR100":
+        # train_dataset
+        # ------------------------------------------------------------------------------------------
+        if data_augmentation_mode == "probability_augment":
+            pass
+
+        else:
+            train_dataset = torchvision.datasets.CIFAR100(
+                root="datasets/CIFAR100",
+                train=True,
+                download=True,
+                transform=train_transform,
+            )
+        # valid_dataset
+        # ------------------------------------------------------------------------------------------
+        valid_dataset = torchvision.datasets.CIFAR100(
+            root="datasets/CIFAR100",
+            train=True,
+            download=True,
+            transform=valid_transform,
+        )
     else:
         # not supported
         raise ValueError("invalid dataset name=%s" % dataset)
@@ -269,23 +290,13 @@ def get_test_loader(
 
     dataset = eval("datasets." + dataset_name)
 
-    if dataset_name == "CIFAR10":
+    if dataset_name == "CIFAR10" or dataset_name == "CIFAR100":
         transform = transforms.Compose(
             [
                 transforms.Resize(int(32 * (8 / 7)), interpolation=Image.BICUBIC),
                 transforms.CenterCrop(32),
                 transforms.ToTensor(),
-                normalize_cifar10,
-            ]
-        )
-
-    elif dataset_name == "CIFAR100":
-        transform = transforms.Compose(
-            [
-                transforms.Resize(int(32 * (8 / 7)), interpolation=Image.BICUBIC),
-                transforms.CenterCrop(32),
-                transforms.ToTensor(),
-                normalize_cifar100,
+                normalize_cifar10 if dataset_name == "CIFAR10" else normalize_cifar100,
             ]
         )
 
@@ -318,6 +329,10 @@ def get_test_loader(
     elif dataset_name == "CIFAR10":
         dataset = torchvision.datasets.CIFAR10(
             root="datasets/CIFAR10", train=False, download=True, transform=transform
+        )
+    elif dataset_name == "CIFAR100":
+        dataset = torchvision.datasets.CIFAR100(
+            root="datasets/CIFAR100", train=False, download=True, transform=transform
         )
     else:
         raise NotImplementedError("Dataset not supported.")
@@ -439,7 +454,7 @@ def get_train_valid_transforms(
     print(f"solarize_threshold: {solarize_threshold}")
     # ----------------------------------------------------------------------------------------------
 
-    if dataset_name == "CIFAR10":
+    if dataset_name == "CIFAR10" or dataset_name == "CIFAR100":
         # No blur augmentation for CIFAR10!
         if not get_fine_tuning_loaders:
             if parameterize_augmentation:
@@ -471,7 +486,7 @@ def get_train_valid_transforms(
                             transforms.RandomHorizontalFlip(p_horizontal_flip),
                             transforms.RandomSolarize(threshold=solarize_threshold, p=p_solarize),
                             transforms.ToTensor(),
-                            normalize_cifar10,
+                            normalize_cifar10 if dataset_name == "CIFAR10" else normalize_cifar100,
                         ]
                     )
                 )
@@ -482,7 +497,7 @@ def get_train_valid_transforms(
                         transforms.Resize(int(32 * (8 / 7)), interpolation=Image.BICUBIC),
                         transforms.CenterCrop(32),
                         transforms.ToTensor(),
-                        normalize_cifar10,
+                        normalize_cifar10 if dataset_name == "CIFAR10" else normalize_cifar100,
                     ]
                 )
             )
@@ -497,7 +512,7 @@ def get_train_valid_transforms(
                     ),
                     transforms.RandomHorizontalFlip(),
                     transforms.ToTensor(),
-                    normalize_cifar10,
+                    normalize_cifar10 if dataset_name == "CIFAR10" else normalize_cifar100,
                 ]
             )
 
@@ -506,26 +521,27 @@ def get_train_valid_transforms(
                     transforms.Resize(int(32 * (8 / 7)), interpolation=Image.BICUBIC),
                     transforms.CenterCrop(32),
                     transforms.ToTensor(),
-                    normalize_cifar10,
+                    normalize_cifar10 if dataset_name == "CIFAR10" else normalize_cifar100,
                 ]
             )
 
-    elif dataset_name == "CIFAR100":
-        train_transform = transforms.Compose(
-            [
-                transforms.RandomCrop(32, padding=4),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                normalize_cifar100,
-            ]
-        )
-
-        valid_transform = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                normalize_cifar100,
-            ]
-        )
+    # TODO: Why padding=4?
+    # elif dataset_name == "CIFAR100":
+    #     train_transform = transforms.Compose(
+    #         [
+    #             transforms.RandomCrop(32, padding=4),
+    #             transforms.RandomHorizontalFlip(),
+    #             transforms.ToTensor(),
+    #             normalize_cifar100,
+    #         ]
+    #     )
+    #
+    #     valid_transform = transforms.Compose(
+    #         [
+    #             transforms.ToTensor(),
+    #             normalize_cifar100,
+    #         ]
+    #     )
 
     elif dataset_name == "ImageNet":
         if not get_fine_tuning_loaders:

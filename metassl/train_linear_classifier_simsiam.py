@@ -138,7 +138,9 @@ def main(config, expt_dir, bohb_infos=None, hyperparameters=None):
 
     config.expt.distributed = config.expt.world_size > 1 or config.expt.multiprocessing_distributed
 
-    if config.data.dataset == "CIFAR10" and config.expt.distributed:
+    if (
+        config.data.dataset == "CIFAR10" or config.data.dataset == "CIFAR100"
+    ) and config.expt.distributed:
         # Define master port (for preventing 'Address already in use error' when submitting more
         # than 1 jobs on 1 node)
         # Code from:
@@ -230,7 +232,17 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, hyperparamete
             num_classes=10,
         )
 
-    else:
+    elif config.data.dataset == "CIFAR100":
+        # Use model from our model folder instead from torchvision!
+        print("=> creating model resnet18")
+        model = SimSiam(
+            our_cifar_resnets.resnet18,
+            config.simsiam.dim,
+            config.simsiam.pred_dim,
+            num_classes=100,
+        )
+
+    elif config.data.dataset == "ImageNet":
         print(f"=> creating model '{config.model.model_type}'")
         model = SimSiam(
             models.__dict__[config.model.model_type],
@@ -238,6 +250,9 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, hyperparamete
             config.simsiam.pred_dim,
             num_classes=1000,
         )
+
+    else:
+        raise NotImplementedError
 
     if config.model.turn_off_bn:
         print("Turning off BatchNorm in entire model.")

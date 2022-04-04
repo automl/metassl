@@ -115,16 +115,6 @@ def main(config, expt_dir, bohb_infos=None):
         print(f"\n\n\n\n\n\nbohb_infos: {bohb_infos}\n\n\n\n\n\n")
     # ----------------------------------------------------------------------------------------------
 
-    if config.data.dataset == "CIFAR10":
-        # Define master port (for preventing 'Address already in use error' when submitting more
-        # than 1 jobs on 1 node)
-        # Code from:
-        # https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number
-        master_port = find_free_port()
-        config.expt.dist_url = "tcp://localhost:" + str(master_port)
-        # if this should still fail: do it via filesystem initialization
-        # https://pytorch.org/docs/stable/distributed.html#shared-file-system-initialization
-
     if config.expt.seed is not None:
         random.seed(config.expt.seed)
         torch.manual_seed(config.expt.seed)
@@ -151,6 +141,18 @@ def main(config, expt_dir, bohb_infos=None):
         config.expt.world_size = int(os.environ["WORLD_SIZE"])
 
     config.expt.distributed = config.expt.world_size > 1 or config.expt.multiprocessing_distributed
+
+    if (
+        config.data.dataset == "CIFAR10" or config.data.dataset == "CIFAR100"
+    ) and config.expt.distributed:
+        # Define master port (for preventing 'Address already in use error' when submitting more
+        # than 1 jobs on 1 node)
+        # Code from:
+        # https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number
+        master_port = find_free_port()
+        config.expt.dist_url = "tcp://localhost:" + str(master_port)
+        # if this should still fail: do it via filesystem initialization
+        # https://pytorch.org/docs/stable/distributed.html#shared-file-system-initialization
 
     ngpus_per_node = torch.cuda.device_count()
     if config.expt.multiprocessing_distributed:
@@ -216,13 +218,26 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
             config.simsiam.pred_dim,
             num_classes=10,
         )
-    else:
+
+    elif config.data.dataset == "CIFAR100":
+        # Use model from our model folder instead from torchvision!
+        model = SimSiam(
+            our_cifar_resnets.resnet18,
+            config.simsiam.dim,
+            config.simsiam.pred_dim,
+            num_classes=100,
+        )
+
+    elif config.data.dataset == "ImageNet":
         model = SimSiam(
             models.__dict__[config.model.model_type],
             config.simsiam.dim,
             config.simsiam.pred_dim,
             num_classes=1000,
         )
+
+    else:
+        raise NotImplementedError
 
     # todo: check backpack + ddp + resnet with sam;
     #  backpack raises errors when using inplace operations
