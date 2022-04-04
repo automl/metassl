@@ -8,6 +8,7 @@ __pycache__/
 
 # Datasets
 datasets/CIFAR10/*/*
+datasets/CIFAR100/*/*
 datasets/ImageNet/*/*
 
 # Experiments
