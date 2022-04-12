@@ -182,6 +182,11 @@ def get_parsed_config():
         action="store_true",
         help="activate knn evaluation during training (default: False)",
     )
+    parser.add_argument(
+        "--expt.is_testing_mode",
+        action="store_true",
+        help="Set this flag to enter the test mode to test the code quickly (default: False)",
+    )
 
     # ----------------------------------------------------------------------------------------------
     # TRAIN

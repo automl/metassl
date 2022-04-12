@@ -21,6 +21,8 @@ def organize_experiment_saving(user, config, is_bohb_run):
         # for start_bohb_master (directory where config.json and results.json are being saved)
         expt_dir = os.path.join(expt_root_dir, "BOHB", config.data.dataset, config.expt.expt_name)
     else:
+        if config.expt.is_testing_mode:
+            expt_root_dir = os.path.join(expt_root_dir, "test_runs")
         if user == "wagn3rd" or user == "wagnerd":
             expt_dir = os.path.join(expt_root_dir, config.data.dataset, config.expt.expt_name)
         else:
