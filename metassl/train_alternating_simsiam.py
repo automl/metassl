@@ -232,8 +232,9 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
         model.encoder_head[6].bias.requires_grad = True
 
     # infer learning rate before changing batch size
-    init_lr_pt = config.train.lr * config.train.batch_size / 256
-    init_lr_ft = config.finetuning.lr * config.finetuning.batch_size / 256
+    divisor = 256 if config.data.dataset == "ImageNet" else config.train.batch_size
+    init_lr_pt = config.train.lr * config.train.batch_size / divisor
+    init_lr_ft = config.finetuning.lr * config.finetuning.batch_size / divisor
 
     if config.expt.distributed:
         # Apply SyncBN
