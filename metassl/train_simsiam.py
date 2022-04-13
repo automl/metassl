@@ -453,6 +453,8 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
                 target_lr=config.expt.warmup_target_lr,
                 multiplier=config.expt.warmup_multiplier,
             )
+            if not config.expt.warmup_epochs > epoch+1:
+                init_lr_pt = cur_lr_pt
 
         else:
             cur_lr_pt = adjust_learning_rate(
