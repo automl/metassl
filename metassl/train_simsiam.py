@@ -280,7 +280,6 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
     # infer learning rate !before changing batch size! > see lines below
     # TODO: @Fabio - keep for CIFAR10? (metassl code); lr_b = 0.06, lr_m = 0.03 * 512 / 256 = 0.06
     init_lr_pt = config.train.lr * config.train.batch_size / 256
-    config.train.init_lr_pt = init_lr_pt  # TODO: config.train.init_lr_pt is currently unused!
 
     if config.expt.distributed:
         # Apply SyncBN TODO: @Fabio - keep for CIFAR10? (metassl code)
@@ -442,19 +441,19 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
             train_sampler_ft.set_epoch(epoch)
 
         warmup = config.expt.warmup_epochs > epoch
-        print(f"Warmup status: {warmup}")
 
         if warmup:
+            print(f"warming up: epoch {epoch} / {config.expt.warmup_epochs}")
             cur_lr_pt = adjust_learning_rate(
                 optimizer_pt,
-                init_lr_pt,
-                epoch,
+                init_lr=init_lr_pt,
+                epoch=epoch,
                 total_epochs=config.expt.warmup_epochs,
                 warmup=True,
+                target_lr=config.expt.warmup_target_lr,
                 multiplier=config.expt.warmup_multiplier,
             )
-            print("warming up phase (PT)")
-            init_lr_pt = cur_lr_pt  # after warmup, we should start lr decay from last warmed up lr
+
         else:
             cur_lr_pt = adjust_learning_rate(
                 optimizer_pt, init_lr_pt, epoch, total_epochs=config.train.epochs

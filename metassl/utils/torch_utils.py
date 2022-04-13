@@ -364,15 +364,19 @@ def adjust_learning_rate(
     epoch,
     total_epochs,
     warmup=False,
+    target_lr=0.1,
     multiplier=1.0,
     use_alternative_scheduler=False,
 ):
     """Decay the learning rate based on schedule; during warmup, increment the learning rate
     linearly (not used for fixed lr)"""
     if warmup:
-        cur_lr = multiplier * init_lr * min(1.0, (float((epoch + 1) / total_epochs)))
+        cur_lr = multiplier * target_lr * min(1.0, (float((epoch + 1) / total_epochs)))
     else:
         cur_lr = init_lr * 0.5 * (1.0 + math.cos(math.pi * epoch / total_epochs))
+
+    for param_group in optimizer.param_groups:
+        print(param_group["lr"])
 
     if use_alternative_scheduler:
         # The way it is done in the baseline code

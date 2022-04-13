@@ -142,11 +142,6 @@ def main(config, expt_dir, bohb_infos=None):
             "You have chosen a specific GPU. This will completely " "disable data parallelism."
         )
 
-    if config.expt.warmup_both:
-        assert (
-            config.expt.warmup_epochs > 0
-        ), "warmup_epochs should be higher than 0 if warmup_both is set to True."
-
     if config.expt.dist_url == "env://" and config.expt.world_size == -1:
         config.expt.world_size = int(os.environ["WORLD_SIZE"])
 
@@ -239,9 +234,6 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
     # infer learning rate before changing batch size
     init_lr_pt = config.train.lr * config.train.batch_size / 256
     init_lr_ft = config.finetuning.lr * config.finetuning.batch_size / 256
-
-    config.train.init_lr_pt = init_lr_pt
-    config.train.init_lr_ft = init_lr_ft
 
     if config.expt.distributed:
         # Apply SyncBN
@@ -408,38 +400,26 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
             train_sampler_ft.set_epoch(epoch)
 
         warmup = config.expt.warmup_epochs > epoch
-        print(f"Warmup status: {warmup}")
 
         if warmup:
+            print(f"warming up: epoch {epoch} / {config.expt.warmup_epochs}")
             cur_lr_pt = adjust_learning_rate(
                 optimizer_pt,
-                init_lr_pt,
-                epoch,
+                init_lr=init_lr_pt,
+                epoch=epoch,
                 total_epochs=config.expt.warmup_epochs,
                 warmup=True,
+                target_lr=config.expt.warmup_target_lr,
                 multiplier=config.expt.warmup_multiplier,
             )
-            print("warming up phase (PT)")
         else:
             cur_lr_pt = adjust_learning_rate(
                 optimizer_pt, init_lr_pt, epoch, total_epochs=config.train.epochs
             )
 
-        if config.expt.warmup_both and warmup:
-            # we intend to reach the pt learning rate when warming up the head
-            cur_lr_ft = adjust_learning_rate(
-                optimizer_ft,
-                init_lr_pt,
-                epoch,
-                total_epochs=config.expt.warmup_epochs,
-                warmup=True,
-                multiplier=config.expt.warmup_multiplier,
-            )
-            print("warming up phase (FT)")
-        else:
-            cur_lr_ft = adjust_learning_rate(
-                optimizer_ft, init_lr_ft, epoch, total_epochs=config.finetuning.epochs
-            )
+        cur_lr_ft = adjust_learning_rate(
+            optimizer_ft, init_lr_ft, epoch, total_epochs=config.finetuning.epochs
+        )
 
         # reset ft meter when transitioning from warmup to normal training
         if not warmup and config.expt.warmup_epochs > epoch - 1:
@@ -639,10 +619,11 @@ def train_one_epoch(
         total_iter += 1
 
         if parameterize_augmentations:
-            if config.expt.rank == 0 and i % (config.expt.print_freq * 1000) == 0:
-                rand_int = torch.randint(high=images_pt.shape[0], size=(1,))
-                # permute from CHW to HWC for pyplot
-                untransformed_image = torch.permute(images_pt[rand_int].squeeze(), (1, 2, 0)).cpu()
+            # if config.expt.rank == 0 and i % (config.expt.print_freq * 1000) == 0:
+            #     rand_int = torch.randint(high=images_pt.shape[0], size=(1,))
+            #     # permute from CHW to HWC for pyplot
+            #     untransformed_image = torch.permute(images_pt[rand_int].squeeze(), (1, 2, 0)).
+            #     cpu()
 
             if config.expt.gpu is not None and not isinstance(images_pt, list):
                 images_pt = images_pt.cuda(config.expt.gpu, non_blocking=True)
@@ -662,7 +643,7 @@ def train_one_epoch(
             images_pt[0] = images_pt[0].cuda(config.expt.gpu, non_blocking=True)
             images_pt[1] = images_pt[1].cuda(config.expt.gpu, non_blocking=True)
             images_ft = images_ft.cuda(config.expt.gpu, non_blocking=True)
-            target_ft = target_ft.cuda(config.expt.gpu, non_blocking=True)
+        target_ft = target_ft.cuda(config.expt.gpu, non_blocking=True)
 
         if (
             parameterize_augmentations
