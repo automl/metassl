@@ -140,13 +140,6 @@ def get_parsed_config():
         "learning rate scheduler during warmup. The final lr is multiplier * pre-training lr",
     )
     parser.add_argument(
-        "--expt.warmup_target_lr",
-        default=1.0,
-        type=float,
-        metavar="N",
-        help="the target lr that is linearly reached after 'warmup_epochs' epochs",
-    )
-    parser.add_argument(
         "--expt.use_fix_aug_params",
         action="store_true",
         help="Use this flag if you want to try out specific aug params (e.g., from a best BOHB "

@@ -445,12 +445,11 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
         if warmup:
             print(f"warming up: epoch {epoch} / {config.expt.warmup_epochs}")
             cur_lr_pt = adjust_learning_rate(
-                optimizer_pt,
+                optimizer=optimizer_pt,
                 init_lr=init_lr_pt,
                 epoch=epoch,
                 total_epochs=config.expt.warmup_epochs,
                 warmup=True,
-                target_lr=config.expt.warmup_target_lr,
                 multiplier=config.expt.warmup_multiplier,
             )
             if not config.expt.warmup_epochs > epoch+1:
@@ -458,7 +457,11 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
 
         else:
             cur_lr_pt = adjust_learning_rate(
-                optimizer_pt, init_lr_pt, epoch, total_epochs=config.train.epochs
+                optimizer=optimizer_pt,
+                init_lr=init_lr_pt,
+                epoch=epoch,
+                total_epochs=config.train.epochs,
+                warmup=False,
             )
 
         print(f"Current LR: {cur_lr_pt}")
