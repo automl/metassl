@@ -224,6 +224,7 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, hyperparamete
             config.simsiam.dim,
             config.simsiam.pred_dim,
             num_classes=10,
+            neps_hyperparameters=hyperparameters,
         )
 
     elif config.data.dataset == "CIFAR100":

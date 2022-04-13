@@ -449,6 +449,7 @@ def get_parsed_config():
             "parameterized_cifar10_augmentation",
             "parameterized_cifar10_augmentation_with_solarize",
             "probability_augment",
+            "hierarchical_nas",
         ],
         help="Define which configspace to use.",
     )

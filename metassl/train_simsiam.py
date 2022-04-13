@@ -36,6 +36,10 @@ from metassl.hyperparameter_optimization.configspaces import (
     get_parameterized_cifar10_augmentation_with_solarize_configspace,
     get_parameterized_cifar10_augmentation_with_solarize_configspace_with_user_prior,
 )
+from metassl.hyperparameter_optimization.hierarchical_configspaces import (
+    get_hierarchical_predictor,
+    get_hierarchical_projector,
+)
 from metassl.parser_flags import get_parsed_config
 
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -255,6 +259,7 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
             config.simsiam.dim,
             config.simsiam.pred_dim,
             num_classes=10,
+            neps_hyperparameters=neps_hyperparameters,
         )
 
     elif config.data.dataset == "CIFAR100":
@@ -760,7 +765,6 @@ if __name__ == "__main__":
                 "you also need to select 'p_probability_augment_ft' as finetuning data "
                 "augmentation mode!"
             )
-
     if config.neps.is_neps_run:
         import neps
 
@@ -792,6 +796,12 @@ if __name__ == "__main__":
                     get_parameterized_cifar10_augmentation_with_solarize_configspace()
                 )
             # fmt: on
+        elif config.neps.config_space == "hierarchical_nas":
+            pipeline_space = dict(
+                hierarchical_projector=get_hierarchical_projector(prev_dim=512),
+                hierarchical_predictor=get_hierarchical_predictor(prev_dim=512),
+                # learning_rate=neps.FloatParameter(lower=0, upper=1)
+            )
         else:
             raise NotImplementedError
         from functools import partial
