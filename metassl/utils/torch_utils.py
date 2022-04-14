@@ -374,9 +374,6 @@ def adjust_learning_rate(
     else:
         cur_lr = init_lr * 0.5 * (1.0 + math.cos(math.pi * epoch / total_epochs))
 
-    for param_group in optimizer.param_groups:
-        print(param_group["lr"])
-
     if use_alternative_scheduler:
         # The way it is done in the baseline code
         schedule = [60, 80]

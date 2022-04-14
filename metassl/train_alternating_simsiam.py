@@ -679,7 +679,7 @@ def train_one_epoch(
         target_std_meter.update(z_std_normalized)
 
         backbone_grads_ft_lw, backbone_grads_ft_global, reward = None, None, None
-        if not warmup:
+        if not warmup and i % config.expt.alternating_finetune_frequency == 0:
             loss_ft, backbone_grads_ft_lw, backbone_grads_ft_global = finetune(
                 model,
                 images_ft,
@@ -716,21 +716,21 @@ def train_one_epoch(
             losses_ft_meter.update(np.inf)
             loss_ft = np.inf
 
-        grads = {
-            "backbone_grads_pt_lw": backbone_grads_pt_lw,
-            "backbone_grads_pt_global": backbone_grads_pt_global,
-            "backbone_grads_ft_lw": backbone_grads_ft_lw,
-            "backbone_grads_ft_global": backbone_grads_ft_global,
-            "reward": reward,
-        }
-
-        update_grad_stats_meters(
-            grads=grads,
-            meters=meters,
-            warmup=warmup,
-            parameterize_augmentations=parameterize_augmentations,
-            aug_model=aug_model,
-        )
+        if i % config.expt.alternating_finetune_frequency == 0:
+            grads = {
+                "backbone_grads_pt_lw": backbone_grads_pt_lw,
+                "backbone_grads_pt_global": backbone_grads_pt_global,
+                "backbone_grads_ft_lw": backbone_grads_ft_lw,
+                "backbone_grads_ft_global": backbone_grads_ft_global,
+                "reward": reward,
+            }
+            update_grad_stats_meters(
+                grads=grads,
+                meters=meters,
+                warmup=warmup,
+                parameterize_augmentations=parameterize_augmentations,
+                aug_model=aug_model,
+            )
 
         main_stats_meters = [
             cos_sim_ema_meter_global,

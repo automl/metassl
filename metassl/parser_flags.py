@@ -46,6 +46,13 @@ def get_parsed_config():
         help="save model frequency in # of epochs",
     )
     parser.add_argument(
+        "--expt.alternating_finetune_frequency",
+        default=5,
+        type=int,
+        metavar="N",
+        help="determines how many number of steps should be skipped before the next finetuning and aug optimizer step is invoked",
+    )
+    parser.add_argument(
         "--expt.ssl_model_checkpoint_path",
         type=str,
         help="path to the pre-trained model, resumes training if model with same config exists",
