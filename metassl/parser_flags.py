@@ -47,7 +47,7 @@ def get_parsed_config():
     )
     parser.add_argument(
         "--expt.alternating_finetune_frequency",
-        default=5,
+        default=1,
         type=int,
         metavar="N",
         help="determines how many number of steps should be skipped before the next finetuning and aug optimizer step is invoked",

@@ -26,7 +26,7 @@ expt:
   warmup_epochs:                10                            # denotes the number of epochs that we only pre-train without finetuning afterwards; warmup is turned off when set to 0; we use a linear incremental schedule during warmup
   warmup_multiplier:            1.                            # denotes the number of epochs that we only pre-train without finetuning afterwards; warmup is turned off when set to 0; we use a linear incremental schedule during warmup
   write_summary_frequency:      10                             # Specifies, after how many batches the TensorBoard summary writer should flush new data to the summary object.
-  alternating_finetune_frequency: 5                         # determines how many number of steps should be skipped before the next finetuning and aug optimizer step is invoked
+  alternating_finetune_frequency: 1                         # determines how many number of steps should be skipped before the next finetuning and aug optimizer step is invoked
 
 #######################################
 ###     Training Configuration      ###
