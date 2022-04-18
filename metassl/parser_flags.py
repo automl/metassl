@@ -46,6 +46,13 @@ def get_parsed_config():
         help="save model frequency in # of epochs",
     )
     parser.add_argument(
+        "--expt.alternating_finetune_frequency",
+        default=1,
+        type=int,
+        metavar="N",
+        help="determines how many number of steps should be skipped before the next finetuning and aug optimizer step is invoked",
+    )
+    parser.add_argument(
         "--expt.ssl_model_checkpoint_path",
         type=str,
         help="path to the pre-trained model, resumes training if model with same config exists",
@@ -139,13 +146,6 @@ def get_parsed_config():
         help="A factor that is multiplied with the pretraining lr used in the linear incremental "
         "learning rate scheduler during warmup. The final lr is multiplier * pre-training lr",
     )
-    parser.add_argument(
-        "--expt.warmup_both",
-        action="store_true",
-        help="Whether backbone and head should be both warmed up.",
-    )
-    # parser.add_argument('--expt.image_wise_gradients', action='store_true',
-    #                     help='compute image wise gradients with backpack (default: False).')
     parser.add_argument(
         "--expt.use_fix_aug_params",
         action="store_true",

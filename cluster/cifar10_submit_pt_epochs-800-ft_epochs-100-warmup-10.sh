@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -p bosch_gpu-rtx2080
-#SBATCH --gres=gpu:8
+#SBATCH --gres=gpu:1
 #SBATCH --job-name=cifar10-pt_epochs-800-ft_epochs-100-warmup-10
 #SBATCH -o /work/dlclarge2/ferreira-metassl/metassl/experiments/logs/%x.%N.%A.%a.out
 #SBATCH --array=0-3%1
@@ -40,4 +40,4 @@ export PYTHONPATH=$PYTHONPATH:$WORKFOLDER
 source /home/ferreira/.miniconda/bin/activate metassl
 
 echo "submitted job $EXPT_NAME"
-srun $WORKFOLDER/cluster/train_cifar10_simsiam.sh $EXPT_NAME $TRAIN_EPOCHS $FINETUNING_EPOCHS $WARMUP_EPOCHS $CONFIG
+srun $WORKFOLDER/cluster/train_cifar10_simsiam_warmup.sh $EXPT_NAME $TRAIN_EPOCHS $FINETUNING_EPOCHS $WARMUP_EPOCHS $CONFIG

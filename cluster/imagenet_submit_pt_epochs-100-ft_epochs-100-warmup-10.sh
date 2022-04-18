@@ -41,4 +41,4 @@ source /home/ferreira/.miniconda/bin/activate metassl
 
 echo "submitted job $EXPT_NAME"
 echo "command used: srun $WORKFOLDER/cluster/train_imagenet_simsiam.sh $EXPT_NAME $TRAIN_EPOCHS $FINETUNING_EPOCHS $WARMUP_EPOCHS $CONFIG"
-srun $WORKFOLDER/cluster/train_imagenet_simsiam.sh $EXPT_NAME $TRAIN_EPOCHS $FINETUNING_EPOCHS $WARMUP_EPOCHS $CONFIG
+srun $WORKFOLDER/cluster/train_imagenet_simsiam_warmup.sh $EXPT_NAME $TRAIN_EPOCHS $FINETUNING_EPOCHS $WARMUP_EPOCHS $CONFIG

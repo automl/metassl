@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p alldlc_gpu-rtx2080 
+#SBATCH -p bosch_gpu-rtx2080 
 #SBATCH --gres=gpu:1
 #SBATCH --job-name=cifar10-alternating-learnaug-colorjitter-epochs-800-warmup-0
 #SBATCH -o /work/dlclarge2/ferreira-metassl/metassl/experiments/logs/%x.%N.%A.%a.out
