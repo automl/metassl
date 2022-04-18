@@ -2,9 +2,11 @@ import neps
 from neps.search_spaces.graph_grammar import topologies as topos
 
 from metassl.hyperparameter_optimization.hierarchical_classes import (
+    GELU,
     BatchNorm,
     FullyConnected,
     Identity,
+    LayerNorm,
     LeakyReLU,
     Linear3Edge,
     Linear4Edge,
@@ -18,7 +20,9 @@ def get_hierarchical_projector(prev_dim):  # encoder head
         "FullyConnected": {"op": FullyConnected, "prev_dim": prev_dim},
         "ReLU": {"op": ReLU},
         "LeakyReLU": {"op": LeakyReLU},
+        "GELU": {"op": GELU},
         "BatchNorm": {"op": BatchNorm, "prev_dim": prev_dim},
+        "LayerNorm": {"op": LayerNorm, "prev_dim": prev_dim},
         "residual": topos.Residual,
         "diamond": topos.Diamond,
         "linear": topos.Linear,
@@ -43,8 +47,8 @@ def get_hierarchical_projector(prev_dim):  # encoder head
             "neutral",
         ],
         "transform": ["FullyConnected"],
-        "activation": ["ReLU", "LeakyReLU"],
-        "norm": ["BatchNorm"],
+        "activation": ["ReLU", "LeakyReLU", "GELU"],
+        "norm": ["BatchNorm", "LayerNorm"],
         "neutral": ["Identity"],
     }
 
@@ -77,7 +81,9 @@ def get_hierarchical_predictor(prev_dim):
         "FullyConnected": {"op": FullyConnected, "prev_dim": prev_dim},
         "ReLU": {"op": ReLU},
         "LeakyReLU": {"op": LeakyReLU},
+        "GELU": {"op": GELU},
         "BatchNorm": {"op": BatchNorm, "prev_dim": prev_dim},
+        "LayerNorm": {"op": LayerNorm, "prev_dim": prev_dim},
         "residual": topos.Residual,
         "diamond": topos.Diamond,
         "linear": topos.Linear,
@@ -110,8 +116,8 @@ def get_hierarchical_predictor(prev_dim):
             "neutral",
         ],
         "transform": ["FullyConnected"],
-        "activation": ["ReLU", "LeakyReLU"],
-        "norm": ["BatchNorm"],
+        "activation": ["ReLU", "LeakyReLU", "GELU"],
+        "norm": ["BatchNorm", "LayerNorm"],
         "neutral": ["Identity"],
     }
 
