@@ -421,7 +421,7 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos):
                 warmup=True,
                 multiplier=config.expt.warmup_multiplier,
             )
-            if not config.expt.warmup_epochs > epoch+1:
+            if not config.expt.warmup_epochs > epoch + 1:
                 init_lr_pt = cur_lr_pt
         else:
             cur_lr_pt = adjust_learning_rate(
@@ -982,9 +982,11 @@ if __name__ == "__main__":
     config = get_parsed_config()
     print("\n\n\n\nConfig:\n", config, "\n\n\n\n")
 
-    # Check whether it is a BOHB run or not + organize expt_dir accordingly
+    # Check whether it is a NEPSgit  run or not + organize expt_dir accordingly
     is_bohb_run = True if config.expt.expt_mode.endswith("BOHB") else False
-    expt_dir = organize_experiment_saving(user=user, config=config, is_bohb_run=is_bohb_run)
+    expt_dir = organize_experiment_saving(
+        user=user, config=config, is_neps_run=config.neps.is_neps_run
+    )
 
     # Error check
     if (

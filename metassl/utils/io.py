@@ -9,7 +9,7 @@ def get_expt_dir_with_bohb_config_id(expt_dir, bohb_config_id):
     return expt_dir_id
 
 
-def organize_experiment_saving(user, config, is_bohb_run):
+def organize_experiment_saving(user, config, is_neps_run):
     # Set expt_root_dir based on user and experiment mode
     if user == "wagnerd":  # Diane cluster
         expt_root_dir = "/work/dlclarge2/wagnerd-metassl-experiments/metassl"
@@ -17,9 +17,9 @@ def organize_experiment_saving(user, config, is_bohb_run):
         expt_root_dir = "experiments"
 
     # Set expt_dir based on whether it is a BOHB run or not + differenciate between users
-    if is_bohb_run:
+    if is_neps_run:
         # for start_bohb_master (directory where config.json and results.json are being saved)
-        expt_dir = os.path.join(expt_root_dir, "BOHB", config.data.dataset, config.expt.expt_name)
+        expt_dir = os.path.join(expt_root_dir, config.data.dataset, "NEPS", config.expt.expt_name)
     else:
         if config.expt.is_testing_mode:
             expt_root_dir = os.path.join(expt_root_dir, "test_runs")

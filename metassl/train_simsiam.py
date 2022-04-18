@@ -741,9 +741,11 @@ if __name__ == "__main__":
 
     print("\n\n\n\nConfig:\n", config, "\n\n\n\n")
 
-    # Check whether it is a BOHB run or not + organize expt_dir accordingly
+    # Check whether it is a NEPS run or not + organize expt_dir accordingly
     is_bohb_run = True if config.expt.expt_mode.endswith("BOHB") else False
-    expt_dir = organize_experiment_saving(user=user, config=config, is_bohb_run=is_bohb_run)
+    expt_dir = organize_experiment_saving(
+        user=user, config=config, is_neps_run=config.neps.is_neps_run
+    )
 
     # Error check
     if (
