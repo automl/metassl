@@ -823,6 +823,21 @@ if __name__ == "__main__":
                     pt_learning_rate=neps.FloatParameter(lower=0.01, upper=10, log=True),
                     warmup_epochs=neps.IntegerParameter(lower=5, upper=50, log=False),
                 )
+        elif config.neps.config_space == "warmup-only":
+            if config.neps.is_user_prior:
+                pipeline_space = dict(
+                    pt_learning_rate=neps.FloatParameter(
+                        lower=0.01, upper=10, log=True, default=0.1, default_confidence="medium"
+                    ),
+                    warmup_epochs=neps.IntegerParameter(
+                        lower=5, upper=50, log=False, default=10, default_confidence="medium"
+                    ),
+                )
+            else:
+                pipeline_space = dict(
+                    pt_learning_rate=neps.FloatParameter(lower=0.01, upper=10, log=True),
+                    warmup_epochs=neps.IntegerParameter(lower=5, upper=50, log=False),
+                )
         else:
             raise NotImplementedError
         from functools import partial

@@ -50,7 +50,8 @@ def get_parsed_config():
         default=1,
         type=int,
         metavar="N",
-        help="determines how many number of steps should be skipped before the next finetuning and aug optimizer step is invoked",
+        help="determines how many number of steps should be skipped before the next finetuning and "
+        "aug optimizer step is invoked",
     )
     parser.add_argument(
         "--expt.ssl_model_checkpoint_path",
@@ -450,6 +451,7 @@ def get_parsed_config():
             "parameterized_cifar10_augmentation_with_solarize",
             "probability_augment",
             "hierarchical_nas",
+            "warmup-only",
         ],
         help="Define which configspace to use.",
     )
