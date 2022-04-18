@@ -24,7 +24,7 @@ class SimSiam(nn.Module):
         self.backbone.fc = torch.nn.Identity()
 
         # build a 3-layer projector
-        if neps_hyperparameters is None:
+        if neps_hyperparameters is None or "hierarchical_projector" not in neps_hyperparameters:
             self.encoder_head = nn.Sequential(
                 nn.Linear(prev_dim, prev_dim, bias=False),
                 nn.BatchNorm1d(prev_dim),
@@ -48,7 +48,7 @@ class SimSiam(nn.Module):
         self.encoder_head[-2].bias.requires_grad = False
 
         # build a 2-layer predictor
-        if neps_hyperparameters is None:
+        if neps_hyperparameters is None or "hierarchical_predictor" not in neps_hyperparameters:
             self.predictor = nn.Sequential(
                 nn.Linear(dim, pred_dim, bias=False),
                 nn.BatchNorm1d(pred_dim),
