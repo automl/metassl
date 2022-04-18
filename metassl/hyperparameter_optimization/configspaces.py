@@ -265,6 +265,8 @@ def get_parameterized_cifar10_augmentation_configspace():
         contrast_strength=contrast_strength,
         saturation_strength=saturation_strength,
         hue_strength=hue_strength,
+        pt_learning_rate=neps.FloatParameter(lower=0.01, upper=10, log=True),
+        warmup_epochs=neps.IntegerParameter(lower=5, upper=50, log=False),
     )
     return pipeline_space
 
@@ -295,6 +297,8 @@ def get_parameterized_cifar10_augmentation_with_solarize_configspace():
         saturation_strength=saturation_strength,
         hue_strength=hue_strength,
         solarize_threshold=solarize_threshold,
+        pt_learning_rate=neps.FloatParameter(lower=0.01, upper=10, log=True),
+        warmup_epochs=neps.IntegerParameter(lower=5, upper=50, log=False),
     )
     return pipeline_space
 
@@ -335,6 +339,12 @@ def get_parameterized_cifar10_augmentation_configspace_with_user_prior():
         contrast_strength=contrast_strength,
         saturation_strength=saturation_strength,
         hue_strength=hue_strength,
+        pt_learning_rate=neps.FloatParameter(
+            lower=0.01, upper=10, log=True, default=0.1, default_confidence="medium"
+        ),
+        warmup_epochs=neps.IntegerParameter(
+            lower=5, upper=50, log=False, default=10, default_confidence="medium"
+        ),
     )
     return pipeline_space
 
@@ -379,5 +389,11 @@ def get_parameterized_cifar10_augmentation_with_solarize_configspace_with_user_p
         saturation_strength=saturation_strength,
         hue_strength=hue_strength,
         solarize_threshold=solarize_threshold,
+        pt_learning_rate=neps.FloatParameter(
+            lower=0.01, upper=10, log=True, default=0.1, default_confidence="medium"
+        ),
+        warmup_epochs=neps.IntegerParameter(
+            lower=5, upper=50, log=False, default=10, default_confidence="medium"
+        ),
     )
     return pipeline_space

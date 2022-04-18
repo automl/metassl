@@ -129,10 +129,14 @@ def main(working_directory, config, bohb_infos=None, **hyperparameters):
     # NEPS only ------------------------------------------------------------------------------------
     if config.neps.is_neps_run:
         neps_hyperparameters = hyperparameters
-        # print(f"Hyperparameters: {hyperparameters}")
-        # learning_rate = hyperparameters["learning_rate"]
-        # print(f"Learning rate: {learning_rate}")
-        # config.train.lr = learning_rate
+
+        if "pt_learning_rate" in neps_hyperparameters:
+            config.train.lr = neps_hyperparameters["pt_learning_rate"]
+            print("PT LR: ", config.train.lr)
+
+        if "warmup_epochs" in neps_hyperparameters:
+            config.expt.warmup_epochs = neps_hyperparameters["warmup_epochs"]
+            print("Warmup Epochs: ", config.expt.warmup_epochs)
     # ----------------------------------------------------------------------------------------------
 
     if config.expt.seed is not None:
@@ -466,7 +470,7 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
                 warmup=True,
                 multiplier=config.expt.warmup_multiplier,
             )
-            if not config.expt.warmup_epochs > epoch+1:
+            if not config.expt.warmup_epochs > epoch + 1:
                 init_lr_pt = cur_lr_pt
 
         else:
@@ -801,11 +805,24 @@ if __name__ == "__main__":
                 )
             # fmt: on
         elif config.neps.config_space == "hierarchical_nas":
-            pipeline_space = dict(
-                hierarchical_projector=get_hierarchical_projector(prev_dim=512),
-                hierarchical_predictor=get_hierarchical_predictor(prev_dim=512),
-                # learning_rate=neps.FloatParameter(lower=0, upper=1)
-            )
+            if config.neps.is_user_prior:
+                pipeline_space = dict(
+                    hierarchical_projector=get_hierarchical_projector(prev_dim=512),
+                    hierarchical_predictor=get_hierarchical_predictor(prev_dim=512),
+                    pt_learning_rate=neps.FloatParameter(
+                        lower=0.01, upper=10, log=True, default=0.1, default_confidence="medium"
+                    ),
+                    warmup_epochs=neps.IntegerParameter(
+                        lower=5, upper=50, log=False, default=10, default_confidence="medium"
+                    ),
+                )
+            else:
+                pipeline_space = dict(
+                    hierarchical_projector=get_hierarchical_projector(prev_dim=512),
+                    hierarchical_predictor=get_hierarchical_predictor(prev_dim=512),
+                    pt_learning_rate=neps.FloatParameter(lower=0.01, upper=10, log=True),
+                    warmup_epochs=neps.IntegerParameter(lower=5, upper=50, log=False),
+                )
         else:
             raise NotImplementedError
         from functools import partial
