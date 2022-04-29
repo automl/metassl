@@ -39,100 +39,149 @@ class FullyConnected(AbstractPrimitive):
         return op_name
 
 
-class ConvBNReLU(AbstractPrimitive):
-    def __init__(self, C_in, C_out, kernel_size, stride=1, affine=True, **kwargs):
+class ConvNormActivation(AbstractPrimitive):
+    def __init__(self, C_in, C_out, kernel_size, norm, activation, stride=1, affine=True, **kwargs):
         super().__init__(locals())
         kernel_size = int(kernel_size)
         stride = int(stride)
 
-        self.kernel_size = kernel_size
-        pad = 0 if int(stride) == 1 and kernel_size == 1 else 1
-        self.op = nn.Sequential(
-            nn.Conv2d(C_in, C_out, kernel_size, stride=stride, padding=pad, bias=False),
-            nn.BatchNorm2d(C_out, affine=affine),
-            nn.ReLU(inplace=True),
-        )
+        allowed_norms = ["BatchNorm", "LayerNorm", "None"]
+        allowed_activations = ["ReLU", "GELU", "None"]
 
-    def forward(self, x, edge_data):
-        return self.op(x)
+        # print("\n\n\n", norm)
 
-    def get_embedded_ops(self):
-        return None
-
-    @property
-    def get_op_name(self):
-        op_name = super().get_op_name
-        op_name += f"Conv{self.kernel_size}x{self.kernel_size}BNReLU"
-        return op_name
-
-
-class ConvBN(AbstractPrimitive):
-    def __init__(self, C_in, C_out, kernel_size, stride=1, affine=True, **kwargs):
-        super().__init__(locals())
-        kernel_size = int(kernel_size)
-        stride = int(stride)
-
-        self.kernel_size = kernel_size
-        pad = 0 if int(stride) == 1 and kernel_size == 1 else 1
-        self.op = nn.Sequential(
-            nn.Conv2d(C_in, C_out, kernel_size, stride=stride, padding=pad, bias=False),
-            nn.BatchNorm2d(C_out, affine=affine),
-        )
-
-    def forward(self, x, edge_data):
-        return self.op(x)
-
-    def get_embedded_ops(self):
-        return None
-
-    @property
-    def get_op_name(self):
-        op_name = super().get_op_name
-        op_name += f"Conv{self.kernel_size}x{self.kernel_size}BNReLU"
-        return op_name
-
-
-class ResNetBasicBlockConvBNReLU(AbstractPrimitive):
-    def __init__(self, C_in, C_out, stride, affine=True, **kwargs):  # pylint:disable=W0613
-        super().__init__(locals())
-        assert stride == 1 or stride == 2, f"invalid stride {stride}"
-        self.conv_a = ConvBNReLU(C_in, C_out, 3, stride)
-        self.conv_b = ConvBN(C_out, C_out, 3)
-        if stride == 2:
-            self.downsample = nn.Sequential(
-                # nn.AvgPool2d(kernel_size=2, stride=2, padding=0),
-                nn.Conv2d(C_in, C_out, kernel_size=1, stride=2, padding=0, bias=False),
-                nn.BatchNorm2d(C_out),
-            )
+        if norm == "BatchNorm":
+            norm = nn.BatchNorm2d(C_out, affine=affine)
+        elif norm == "LayerNorm":
+            norm = nn.LayerNorm(C_out)
+        elif norm == "None":
+            norm = nn.Identity()
         else:
-            self.downsample = None
+            raise ValueError(f"norm must be in {allowed_norms}")
 
-        self.relu = nn.ReLU(inplace=True)
+        if activation == "ReLU":
+            activation = nn.ReLU(inplace=True)
+        elif activation == "GELU":
+            activation = nn.GELU()
+        elif activation == "None":
+            activation = nn.Identity()
+        else:
+            raise ValueError(f"activation must be in {allowed_activations}")
 
-    def forward(self, x, edge_data):  # pylint: disable=W0613
-        basicblock = self.conv_a(x, None)
-        basicblock = self.conv_b(basicblock, None)
-        residual = self.downsample(x) if self.downsample is not None else x
-        return self.relu(residual + basicblock)
+        self.kernel_size = kernel_size
+        pad = 0 if int(stride) == 1 and kernel_size == 1 else 1
+        self.op = nn.Sequential(
+            nn.Conv2d(C_in, C_out, kernel_size, stride=stride, padding=pad, bias=False),
+            norm,
+            activation,
+        )
 
-    @staticmethod
-    def get_embedded_ops():
+    def forward(self, x, edge_data):
+        return self.op(x)
+
+    def get_embedded_ops(self):
         return None
+
+    @property
+    def get_op_name(self):
+        op_name = super().get_op_name
+        op_name += f"Conv{self.kernel_size}x{self.kernel_size}BNReLU"
+        return op_name
+
+
+class ConvNorm(AbstractPrimitive):
+    def __init__(self, C_in, C_out, kernel_size, norm, stride=1, affine=True, **kwargs):
+        super().__init__(locals())
+        kernel_size = int(kernel_size)
+        stride = int(stride)
+
+        allowed_norms = ["BatchNorm", "LayerNorm", "None"]
+
+        if norm == "BatchNorm":
+            norm = nn.BatchNorm2d(C_out, affine=affine)
+        elif norm == "LayerNorm":
+            norm = nn.LayerNorm(C_out)
+        elif norm == "None":
+            norm = nn.Identity()
+        else:
+            raise ValueError(f"norm must be in {allowed_norms}")
+
+        self.kernel_size = kernel_size
+        pad = 0 if int(stride) == 1 and kernel_size == 1 else 1
+        self.op = nn.Sequential(
+            nn.Conv2d(C_in, C_out, kernel_size, stride=stride, padding=pad, bias=False),
+            norm,
+        )
+
+    def forward(self, x, edge_data):
+        return self.op(x)
+
+    def get_embedded_ops(self):
+        return None
+
+    @property
+    def get_op_name(self):
+        op_name = super().get_op_name
+        op_name += f"Conv{self.kernel_size}x{self.kernel_size}BNReLU"
+        return op_name
+
+
+# class ResNetBasicBlockConvBNReLU(AbstractPrimitive):
+#     def __init__(self, C_in, C_out, stride, affine=True, **kwargs):  # pylint:disable=W0613
+#         super().__init__(locals())
+#         assert stride == 1 or stride == 2, f"invalid stride {stride}"
+#         self.conv_a = ConvBNReLU(C_in, C_out, 3, stride)
+#         self.conv_b = ConvBN(C_out, C_out, 3)
+#         if stride == 2:
+#             self.downsample = nn.Sequential(
+#                 # nn.AvgPool2d(kernel_size=2, stride=2, padding=0),
+#                 nn.Conv2d(C_in, C_out, kernel_size=1, stride=2, padding=0, bias=False),
+#                 nn.BatchNorm2d(C_out),
+#             )
+#         else:
+#             self.downsample = None
+#
+#         self.relu = nn.ReLU(inplace=True)
+#
+#     def forward(self, x, edge_data):  # pylint: disable=W0613
+#         basicblock = self.conv_a(x, None)
+#         basicblock = self.conv_b(basicblock, None)
+#         residual = self.downsample(x) if self.downsample is not None else x
+#         return self.relu(residual + basicblock)
+#
+#     @staticmethod
+#     def get_embedded_ops():
+#         return None
 
 
 class ResNetBasicBlockStride1(AbstractPrimitive):
-    def __init__(self, C_in, C_out, stride, affine=True, **kwargs):  # pylint:disable=W0613
+    def __init__(
+        self, C_in, C_out, norm="LayerNorm", activation="GELU", stride=2, affine=True, **kwargs
+    ):  # pylint:disable=W0613
         super().__init__(locals())
         assert stride == 1 or stride == 2, f"invalid stride {stride}"
         # if stride == 2:
         #     C_out *= 2
-        self.conv_a = ConvBNReLU(C_in, C_out, 3, stride)
-        self.conv_b = ConvBN(C_out, C_out, 3)
+
+        self.conv_a = ConvNormActivation(C_in, C_out, 3, norm, activation, stride)
+        self.conv_b = ConvNorm(C_out, C_out, 3, norm)
+
+        allowed_norms = ["BatchNorm", "LayerNorm", "None"]
+
+        if norm == "BatchNorm":
+            norm = nn.BatchNorm2d(C_out, affine=affine)
+        elif norm == "LayerNorm":
+            norm = nn.LayerNorm(C_out)
+        elif norm == "None":
+            norm = nn.Identity()
+        else:
+            raise ValueError(f"norm must be in {allowed_norms}")
+
         if stride == 2:
             self.downsample = nn.Sequential(
                 # nn.AvgPool2d(kernel_size=2, stride=2, padding=0),
                 nn.Conv2d(C_in, C_out, kernel_size=1, stride=2, padding=0, bias=False),
-                nn.BatchNorm2d(C_out),
+                norm,
             )
         else:
             self.downsample = None
@@ -149,18 +198,33 @@ class ResNetBasicBlockStride1(AbstractPrimitive):
 
 
 class ResNetBasicBlockStride2(AbstractPrimitive):
-    def __init__(self, C_in, C_out, stride, affine=True, **kwargs):  # pylint:disable=W0613
+    def __init__(
+        self, C_in, C_out, norm="LayerNorm", activation="GELU", stride=2, affine=True, **kwargs
+    ):  # pylint:disable=W0613
         super().__init__(locals())
         assert stride == 1 or stride == 2, f"invalid stride {stride}"
         # if stride == 2:
         #     C_out *= 2
-        self.conv_a = ConvBNReLU(C_in, C_out, 3, stride)
-        self.conv_b = ConvBN(C_out, C_out, 3)
+
+        self.conv_a = ConvNormActivation(C_in, C_out, 3, norm, activation, stride)
+        self.conv_b = ConvNorm(C_out, C_out, 3, norm)
+
+        allowed_norms = ["BatchNorm", "LayerNorm", "None"]
+
+        if norm == "BatchNorm":
+            norm = nn.BatchNorm2d(C_out, affine=affine)
+        elif norm == "LayerNorm":
+            norm = nn.LayerNorm(C_out)
+        elif norm == "None":
+            norm = nn.Identity()
+        else:
+            raise ValueError(f"norm must be in {allowed_norms}")
+
         if stride == 2:
             self.downsample = nn.Sequential(
                 # nn.AvgPool2d(kernel_size=2, stride=2, padding=0),
                 nn.Conv2d(C_in, C_out, kernel_size=1, stride=2, padding=0, bias=False),
-                nn.BatchNorm2d(C_out),
+                norm,
             )
         else:
             self.downsample = None
@@ -281,23 +345,37 @@ class LayerNorm(AbstractPrimitive):
         return op_name
 
 
-class Linear3Edge(AbstractTopology):
+class Sequential(AbstractTopology):
+    edge_list = [
+        (1, 2),
+        (2, 3),
+    ]
+
+    def __init__(self, *edge_vals):
+        super().__init__()
+
+        self.name = "Sequential"
+        self.create_graph(dict(zip(self.edge_list, edge_vals)))
+        self.set_scope(self.name)
+
+
+class Sequential3Edge(AbstractTopology):
     edge_list: list = [(1, 2), (2, 3), (3, 4)]
 
     def __init__(self, *edge_vals):
         super().__init__()
         number_of_edges = 3
-        self.name = f"Linear_{number_of_edges}_Edges"
+        self.name = f"Sequential_{number_of_edges}_Edges"
         self.create_graph(dict(zip(self.edge_list, edge_vals)))
         self.set_scope(self.name)
 
 
-class Linear4Edge(AbstractTopology):
+class Sequential4Edge(AbstractTopology):
     edge_list: list = [(1, 2), (2, 3), (3, 4), (4, 5)]
 
     def __init__(self, *edge_vals):
         super().__init__()
         number_of_edges = 4
-        self.name = f"Linear_{number_of_edges}_Edges"
+        self.name = f"Sequential_{number_of_edges}_Edges"
         self.create_graph(dict(zip(self.edge_list, edge_vals)))
         self.set_scope(self.name)
