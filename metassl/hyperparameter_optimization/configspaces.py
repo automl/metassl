@@ -60,9 +60,13 @@ def get_neps_pipeline_space(config_space, user_prior):
     elif config_space == "hierarchical_nas":
         if user_prior:
             pipeline_space = dict(
-                hierarchical_backbone=get_hierarchical_backbone(),  # TODO: prior
-                hierarchical_projector=get_hierarchical_projector(prev_dim=512),  # TODO: prior
-                hierarchical_predictor=get_hierarchical_predictor(prev_dim=512),  # TODO: prior
+                hierarchical_backbone=get_hierarchical_backbone(user_prior=user_prior),
+                hierarchical_projector=get_hierarchical_projector(
+                    prev_dim=512, user_prior=user_prior
+                ),
+                hierarchical_predictor=get_hierarchical_predictor(
+                    prev_dim=512, user_prior=user_prior
+                ),
             )
         else:
             pipeline_space = dict(
@@ -147,9 +151,13 @@ def get_neps_pipeline_space(config_space, user_prior):
                     lower=0, upper=255, log=False, default=255, default_confidence="low"
                 ),
                 # HIERARCHICAL NAS
-                hierarchical_backbone=get_hierarchical_backbone(),  # TODO: prior
-                hierarchical_projector=get_hierarchical_projector(prev_dim=512),  # TODO: prior
-                hierarchical_predictor=get_hierarchical_predictor(prev_dim=512),  # TODO: prior
+                hierarchical_backbone=get_hierarchical_backbone(user_prior=user_prior),
+                hierarchical_projector=get_hierarchical_projector(
+                    prev_dim=512, user_prior=user_prior
+                ),
+                hierarchical_predictor=get_hierarchical_predictor(
+                    prev_dim=512, user_prior=user_prior
+                ),
                 # TRAINING
                 pt_learning_rate=neps.FloatParameter(
                     lower=0.01, upper=10, log=True, default=0.03, default_confidence="medium"

@@ -17,7 +17,7 @@ from metassl.hyperparameter_optimization.hierarchical_classes import (
 )
 
 
-def get_hierarchical_backbone():  # ResNet18
+def get_hierarchical_backbone(user_prior=None):  # ResNet18
     primitives = {
         "Identity": {"op": Identity},
         "ResNetBB_BN_GELU_1": {
@@ -110,6 +110,13 @@ def get_hierarchical_backbone():  # ResNet18
         ],
     }
 
+    # TODO: integrate user prior
+    # prior_distr = {
+    #     "S": [0.5, 0.25, 0.25],  # TODO: give probability for each element in S
+    #     "ResNetBB_stride1": [1 / 4 for _ in range(4)],
+    #     # TODO: Do for all groups
+    # }
+
     def set_recursive_attribute(op_name, predecessor_values):
         in_channels = 64 if predecessor_values is None else predecessor_values["C_out"]
         out_channels = in_channels * 2 if op_name == "ResNetBasicBlockStride2" else in_channels
@@ -120,13 +127,14 @@ def get_hierarchical_backbone():  # ResNet18
         set_recursive_attribute=set_recursive_attribute,
         structure=structure,
         primitives=primitives,
+        # TODO: prior=prior_distr if config.neps.is_user_prior else None,
         name="hierarchical_backbone",
     )
 
     return hierarchical_backbone
 
 
-def get_hierarchical_projector(prev_dim):  # encoder head
+def get_hierarchical_projector(prev_dim, user_prior=None):  # encoder head
     primitives = {
         "Identity": {"op": Identity},
         "FullyConnected": {"op": FullyConnected, "prev_dim": prev_dim},
@@ -176,18 +184,21 @@ def get_hierarchical_projector(prev_dim):  # encoder head
     # (7): BatchNorm1d(2048, eps=1e-05, momentum=0.1, affine=False, track_running_stats=True)  > FIX
     # )
 
+    # TODO: integrate user prior
+
     # Generated hierarchical_projector
     hierarchical_projector = neps.FunctionParameter(
         set_recursive_attribute=None,
         structure=structure,
         primitives=primitives,
+        # TODO: prior=prior_distr if config.neps.is_user_prior else None,
         name="hierarchical_projector",
     )
 
     return hierarchical_projector
 
 
-def get_hierarchical_predictor(prev_dim):
+def get_hierarchical_predictor(prev_dim, user_prior=None):
     primitives = {
         "Identity": {"op": Identity},
         "FullyConnected": {"op": FullyConnected, "prev_dim": prev_dim},
@@ -241,11 +252,14 @@ def get_hierarchical_predictor(prev_dim):
     # (3): Linear(in_features=512, out_features=2048, bias=True)   > FIX
     # )
 
+    # TODO: integrate user prior
+
     # Generated hierarchical_predictor
     hierarchical_predictor = neps.FunctionParameter(
         set_recursive_attribute=None,
         structure=structure,
         primitives=primitives,
+        # TODO: prior=prior_distr if config.neps.is_user_prior else None,
         name="hierarchical_predictor",
     )
 

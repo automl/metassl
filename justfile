@@ -76,7 +76,7 @@ delete_test_runs:
   echo ""
   echo ""
   echo "------- TESTING CIFAR10 NEPS -------"
-  python -m metassl.train_simsiam --config "metassl/default_metassl_config_cifar10.yaml" --use_fixed_args --expt.is_testing_mode --data.dataset_percentage_usage 25 --train.epochs 5 --finetuning.epochs 5 --expt.warmup_epochs 0 --expt.seed 0 --expt.save_model_frequency 50 --expt.is_non_grad_based --expt.multiprocessing_distributed --neps.is_neps_run --neps.config_space combined --expt.expt_name testing_cifar10_neps_1
+  python -m metassl.train_simsiam --config "metassl/default_metassl_config_cifar10.yaml" --use_fixed_args --expt.is_testing_mode --data.dataset_percentage_usage 25 --train.epochs 5 --finetuning.epochs 5 --expt.warmup_epochs 0 --expt.seed 0 --expt.save_model_frequency 50 --expt.is_non_grad_based --expt.multiprocessing_distributed --neps.is_neps_run --neps.config_space combined --neps.is_user_prior --expt.expt_name testing_cifar10_neps_1
 
 # ---------------------------------------------------------------------------------------
 # SIMSIAM ON CIFAR10
