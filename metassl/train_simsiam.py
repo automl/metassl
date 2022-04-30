@@ -30,17 +30,7 @@ import torch.utils.data.distributed
 import torchvision.models as models
 from torch.utils.tensorboard import SummaryWriter
 
-from metassl.hyperparameter_optimization.configspaces import (
-    get_parameterized_cifar10_augmentation_configspace,
-    get_parameterized_cifar10_augmentation_configspace_with_user_prior,
-    get_parameterized_cifar10_augmentation_with_solarize_configspace,
-    get_parameterized_cifar10_augmentation_with_solarize_configspace_with_user_prior,
-)
-from metassl.hyperparameter_optimization.hierarchical_configspaces import (
-    get_hierarchical_backbone,
-    get_hierarchical_predictor,
-    get_hierarchical_projector,
-)
+from metassl.hyperparameter_optimization.configspaces import get_neps_pipeline_space
 from metassl.parser_flags import get_parsed_config
 
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -290,6 +280,7 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
         raise NotImplementedError
 
     # print(model)
+    print("\n\n\nNEPS HYPERPARAMETERS: ", neps_hyperparameters, "\n\n\n")
 
     if config.model.turn_off_bn:
         print("Turning off BatchNorm in entire model.")
@@ -377,15 +368,36 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
                 "fix_lr": config.simsiam.fix_pred_lr,
             },
         ]
+    if neps_hyperparameters is not None and "pt_optimizer" in neps_hyperparameters:
+        # choices=['adamw', 'sgd', 'lars']
+        if neps_hyperparameters["pt_optimizer"] == "sgd":
+            optimizer_pt = torch.optim.SGD(
+                params=optim_params_pt if config.expt.distributed else model.parameters(),
+                lr=init_lr_pt,
+                momentum=config.train.momentum,
+                weight_decay=config.train.weight_decay,
+            )
+        elif neps_hyperparameters["pt_optimizer"] == "adamw":
+            optimizer_pt = torch.optim.AdamW(
+                params=optim_params_pt if config.expt.distributed else model.parameters(),
+                lr=init_lr_pt,
+                weight_decay=config.train.weight_decay,
+            )
+        elif neps_hyperparameters["pt_optimizer"] == "lars":
+            raise NotImplementedError("TODO: Add LARS optimizer")
+        else:
+            raise NotImplementedError(
+                "{neps_hyperparameters['pt_optimizer']} is not implemented yet!"
+            )
+        print("\nOptimizer (NEPS): ", optimizer_pt)
 
-    optimizer_pt = torch.optim.SGD(
-        params=optim_params_pt
-        if config.expt.distributed
-        else model.parameters(),  # TODO: @Fabio - check together with optim_params_pt
-        lr=init_lr_pt,
-        momentum=config.train.momentum,
-        weight_decay=config.train.weight_decay,
-    )
+    else:
+        optimizer_pt = torch.optim.SGD(
+            params=optim_params_pt if config.expt.distributed else model.parameters(),
+            lr=init_lr_pt,
+            momentum=config.train.momentum,
+            weight_decay=config.train.weight_decay,
+        )
 
     # in case a dumped model exist and ssl_model_checkpoint is not set, load that dumped model
     newest_model = get_newest_model(expt_dir, suffix="checkpoint*.pth.tar")
@@ -470,6 +482,7 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
                 total_epochs=config.expt.warmup_epochs,
                 warmup=True,
                 multiplier=config.expt.warmup_multiplier,
+                neps_hyperparameters=neps_hyperparameters,
             )
             if not config.expt.warmup_epochs > epoch + 1:
                 init_lr_pt = cur_lr_pt
@@ -485,9 +498,16 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
 
         print(f"Current LR: {cur_lr_pt}")
 
-        if config.expt.wd_decay_pt:
+        if config.expt.wd_decay_pt or (
+            neps_hyperparameters is not None and "pt_weight_decay_start" in neps_hyperparameters
+        ):
+            if neps_hyperparameters is not None and "pt_weight_decay_start" in neps_hyperparameters:
+                config.train.wd_start = neps_hyperparameters["pt_weight_decay_start"]
+                config.train.wd_end = neps_hyperparameters["pt_weight_decay_end"]
+                print("\nAnnealing Weight Decay (NEPS)")
+
             # Do annealing
-            if epoch == 1:
+            if epoch == 0:
                 for group in optimizer_pt.param_groups:
                     group["weight_decay"] = config.train.wd_start
                     current_weight_decay = group["weight_decay"]
@@ -495,9 +515,9 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
                 for group in optimizer_pt.param_groups:
                     group["weight_decay"] = config.train.wd_end + 1 / 2 * (
                         config.train.wd_start - config.train.wd_end
-                    ) * (1 + math.cos(epoch / config.train.epochs * math.pi))
+                    ) * (1 + math.cos(epoch / (config.train.epochs - 1) * math.pi))
                     current_weight_decay = group["weight_decay"]
-            print(f"current weight decay (pt): {current_weight_decay}")
+            print(f"current weight decay (pt): {current_weight_decay}\n")
 
         total_iter = train_one_epoch(
             train_loader_pt=train_loader_pt,
@@ -776,77 +796,28 @@ if __name__ == "__main__":
                 "you also need to select 'p_probability_augment_ft' as finetuning data "
                 "augmentation mode!"
             )
-    if config.neps.is_neps_run:
+
+    if config.neps.is_neps_run:  # -----------------------------------------------------------------
+        from functools import partial
+
         import neps
 
+        # Logging
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s %(levelname)-8s [%(name)s] %(message)s",
         )
-        # pipeline_space = dict(learning_rate=neps.FloatParameter(lower=0, upper=1))
-        if config.neps.config_space == "parameterized_cifar10_augmentation":
-            pipeline_space = get_parameterized_cifar10_augmentation_configspace()
-            # fmt: off
-            if config.neps.is_user_prior:
-                pipeline_space = (
-                    get_parameterized_cifar10_augmentation_configspace_with_user_prior()  # noqa: E501, E241
-                )
-            else:
-                pipeline_space = (
-                    get_parameterized_cifar10_augmentation_configspace()
-                )
-            # fmt: on
-        elif config.neps.config_space == "parameterized_cifar10_augmentation_with_solarize":
-            # fmt: off
-            if config.neps.is_user_prior:
-                pipeline_space = (
-                    get_parameterized_cifar10_augmentation_with_solarize_configspace_with_user_prior()  # noqa: E501, E241
-                )
-            else:
-                pipeline_space = (
-                    get_parameterized_cifar10_augmentation_with_solarize_configspace()
-                )
-            # fmt: on
-        elif config.neps.config_space == "hierarchical_nas":
-            if config.neps.is_user_prior:
-                pipeline_space = dict(
-                    hierarchical_backbone=get_hierarchical_backbone(),
-                    hierarchical_projector=get_hierarchical_projector(prev_dim=512),
-                    hierarchical_predictor=get_hierarchical_predictor(prev_dim=512),
-                    pt_learning_rate=neps.FloatParameter(
-                        lower=0.01, upper=10, log=True, default=0.1, default_confidence="medium"
-                    ),
-                    warmup_epochs=neps.IntegerParameter(
-                        lower=5, upper=50, log=False, default=10, default_confidence="medium"
-                    ),
-                )
-            else:
-                pipeline_space = dict(
-                    hierarchical_backbone=get_hierarchical_backbone(),
-                    hierarchical_projector=get_hierarchical_projector(prev_dim=512),
-                    hierarchical_predictor=get_hierarchical_predictor(prev_dim=512),
-                    pt_learning_rate=neps.FloatParameter(lower=0.01, upper=10, log=True),
-                    warmup_epochs=neps.IntegerParameter(lower=5, upper=50, log=False),
-                )
-        elif config.neps.config_space == "warmup-only":
-            if config.neps.is_user_prior:
-                pipeline_space = dict(
-                    pt_learning_rate=neps.FloatParameter(
-                        lower=0.01, upper=10, log=True, default=0.1, default_confidence="medium"
-                    ),
-                    warmup_epochs=neps.IntegerParameter(
-                        lower=5, upper=50, log=False, default=10, default_confidence="medium"
-                    ),
-                )
-            else:
-                pipeline_space = dict(
-                    pt_learning_rate=neps.FloatParameter(lower=0.01, upper=10, log=True),
-                    warmup_epochs=neps.IntegerParameter(lower=5, upper=50, log=False),
-                )
-        else:
-            raise NotImplementedError
-        from functools import partial
 
+        # Get NEPS config space with/without user prior
+        # Config spaces choices: ["data_augmentation", "hierarchical_nas", "training", "combined"]
+        if config.data.dataset == "CIFAR10":
+            pipeline_space = get_neps_pipeline_space(
+                config_space=config.neps.config_space, user_prior=config.neps.is_user_prior
+            )
+        else:
+            raise NotImplementedError("Please fix some CIFAR10 hardcoding in pipeline_space")
+
+        # Start NEPS
         main = partial(main, config=config)
         neps.run(
             run_pipeline=main,
@@ -854,8 +825,9 @@ if __name__ == "__main__":
             working_directory=expt_dir,
             max_evaluations_total=500,
             max_evaluations_per_run=1,
+            overwrite_working_directory=False,  # Set True for debuggingq
         )
-        # max_evaluations_per_run=1
+        # ------------------------------------------------------------------------------------------
 
     else:
         # Run BOHB / main

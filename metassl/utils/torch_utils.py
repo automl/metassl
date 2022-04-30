@@ -365,31 +365,25 @@ def adjust_learning_rate(
     total_epochs,
     warmup=False,
     multiplier=1.0,
-    use_alternative_scheduler=False,
+    neps_hyperparameters=None,
 ):
     """Decay the learning rate based on schedule; during warmup, increment the learning rate
     linearly (not used for fixed lr)"""
     if warmup:
+        if neps_hyperparameters is not None and "warmup_multiplier" in neps_hyperparameters:
+            multiplier = neps_hyperparameters["warmup_multiplier"]
+            print("\nWarmup multiplier (NEPS): ", multiplier)
         cur_lr = multiplier * init_lr * min(1.0, (float((epoch + 1) / total_epochs)))
     else:
         cur_lr = init_lr * 0.5 * (1.0 + math.cos(math.pi * epoch / total_epochs))
 
-    if use_alternative_scheduler:
-        # The way it is done in the baseline code
-        schedule = [60, 80]
-        for milestone in schedule:
-            init_lr *= 0.1 if epoch >= milestone else 1.0
-        for param_group in optimizer.param_groups:
+    for param_group in optimizer.param_groups:
+        if "fix_lr" in param_group and param_group["fix_lr"]:
             param_group["lr"] = init_lr
-        return init_lr
-    else:
-        for param_group in optimizer.param_groups:
-            if "fix_lr" in param_group and param_group["fix_lr"]:
-                param_group["lr"] = init_lr
-                return init_lr
-            else:
-                param_group["lr"] = cur_lr
-                return cur_lr
+            return init_lr
+        else:
+            param_group["lr"] = cur_lr
+            return cur_lr
 
 
 def accuracy(output, target, topk=(1,)):

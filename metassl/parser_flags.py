@@ -445,13 +445,12 @@ def get_parsed_config():
     parser.add_argument(
         "--neps.config_space",
         type=str,
-        default="parameterized_cifar10_augmentation_with_solarize",
+        default="hierarchical_nas",
         choices=[
-            "parameterized_cifar10_augmentation",
-            "parameterized_cifar10_augmentation_with_solarize",
-            "probability_augment",
+            "data_augmentation",
             "hierarchical_nas",
-            "warmup-only",
+            "training",
+            "combined",
         ],
         help="Define which configspace to use.",
     )

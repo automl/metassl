@@ -405,40 +405,26 @@ def get_train_valid_transforms(
         hue_strength = bohb_infos["bohb_config"]["hue_strength"]
 
     # NEPS only ------------------------------------------------------------------------------------
-    if config.neps.is_neps_run:
-        if (
-            config.neps.config_space == "parameterized_cifar10_augmentation"
-            and neps_hyperparameters is not None
-        ):
-            print(f"Hyperparameters: {neps_hyperparameters}")
-            # Probabilities
-            p_colorjitter = neps_hyperparameters["p_colorjitter"]
-            p_grayscale = neps_hyperparameters["p_grayscale"]
-            p_horizontal_flip = neps_hyperparameters["p_horizontal_flip"]
+    if (
+        config.neps.is_neps_run
+        and neps_hyperparameters is not None
+        and (
+            config.neps.config_space == "data_augmentation"
+            or config.neps.config_space == "combined"
+        )
+    ):
+        # Probabilities
+        p_colorjitter = neps_hyperparameters["p_colorjitter"]
+        p_grayscale = neps_hyperparameters["p_grayscale"]
+        p_horizontal_flip = neps_hyperparameters["p_horizontal_flip"]
+        p_solarize = neps_hyperparameters["p_solarize"]
 
-            # Strengths and Thresholds
-            brightness_strength = neps_hyperparameters["brightness_strength"]
-            contrast_strength = neps_hyperparameters["contrast_strength"]
-            saturation_strength = neps_hyperparameters["saturation_strength"]
-            hue_strength = neps_hyperparameters["hue_strength"]
-
-        elif (
-            config.neps.config_space == "parameterized_cifar10_augmentation_with_solarize"
-            and neps_hyperparameters is not None
-        ):
-            print(f"Hyperparameters: {neps_hyperparameters}")
-            # Probabilities
-            p_colorjitter = neps_hyperparameters["p_colorjitter"]
-            p_grayscale = neps_hyperparameters["p_grayscale"]
-            p_horizontal_flip = neps_hyperparameters["p_horizontal_flip"]
-            p_solarize = neps_hyperparameters["p_solarize"]
-
-            # Strengths and Thresholds
-            brightness_strength = neps_hyperparameters["brightness_strength"]
-            contrast_strength = neps_hyperparameters["contrast_strength"]
-            saturation_strength = neps_hyperparameters["saturation_strength"]
-            hue_strength = neps_hyperparameters["hue_strength"]
-            solarize_threshold = neps_hyperparameters["solarize_threshold"]
+        # Strengths and Thresholds
+        brightness_strength = neps_hyperparameters["brightness_strength"]
+        contrast_strength = neps_hyperparameters["contrast_strength"]
+        saturation_strength = neps_hyperparameters["saturation_strength"]
+        hue_strength = neps_hyperparameters["hue_strength"]
+        solarize_threshold = neps_hyperparameters["solarize_threshold"]
     # ----------------------------------------------------------------------------------------------
 
     # For testing

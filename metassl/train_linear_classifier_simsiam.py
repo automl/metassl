@@ -387,7 +387,6 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, hyperparamete
             init_lr_ft,
             epoch,
             total_epochs=config.finetuning.epochs,
-            use_alternative_scheduler=config.finetuning.use_alternative_scheduler,
         )
 
         if config.expt.wd_decay_ft:
