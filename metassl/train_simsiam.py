@@ -37,6 +37,7 @@ from metassl.hyperparameter_optimization.configspaces import (
     get_parameterized_cifar10_augmentation_with_solarize_configspace_with_user_prior,
 )
 from metassl.hyperparameter_optimization.hierarchical_configspaces import (
+    get_hierarchical_backbone,
     get_hierarchical_predictor,
     get_hierarchical_projector,
 )
@@ -809,6 +810,7 @@ if __name__ == "__main__":
         elif config.neps.config_space == "hierarchical_nas":
             if config.neps.is_user_prior:
                 pipeline_space = dict(
+                    hierarchical_backbone=get_hierarchical_backbone(),
                     hierarchical_projector=get_hierarchical_projector(prev_dim=512),
                     hierarchical_predictor=get_hierarchical_predictor(prev_dim=512),
                     pt_learning_rate=neps.FloatParameter(
@@ -820,6 +822,7 @@ if __name__ == "__main__":
                 )
             else:
                 pipeline_space = dict(
+                    hierarchical_backbone=get_hierarchical_backbone(),
                     hierarchical_projector=get_hierarchical_projector(prev_dim=512),
                     hierarchical_predictor=get_hierarchical_predictor(prev_dim=512),
                     pt_learning_rate=neps.FloatParameter(lower=0.01, upper=10, log=True),

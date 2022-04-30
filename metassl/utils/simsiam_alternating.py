@@ -19,9 +19,30 @@ class SimSiam(nn.Module):
 
         # create the encoder
         # num_classes is the output fc dimension, zero-initialize last BNs
-        self.backbone: ResNet = base_encoder(num_classes=dim, zero_init_residual=False)
-        prev_dim = self.backbone.fc.weight.shape[1]
-        self.backbone.fc = torch.nn.Identity()
+        if neps_hyperparameters is None or "hierarchical_backbone" not in neps_hyperparameters:
+            self.backbone: ResNet = base_encoder(num_classes=dim, zero_init_residual=False)
+            prev_dim = self.backbone.fc.weight.shape[1]
+            self.backbone.fc = torch.nn.Identity()
+        else:
+            hierarchical_backbone = neps_hyperparameters["hierarchical_backbone"].to_pytorch()
+            in_channels = 3
+            base_channels = 64
+            out_channels = pred_dim
+            self.backbone = nn.Sequential(
+                nn.Sequential(  # TODO: Add to configspace?
+                    nn.Conv2d(in_channels, base_channels, kernel_size=3, padding=1, bias=False),
+                    nn.BatchNorm2d(base_channels),
+                    nn.ReLU(inplace=True),
+                ),
+                hierarchical_backbone,
+                nn.AdaptiveAvgPool2d(1),
+                nn.Flatten(),
+                nn.Linear(out_channels, num_classes),
+            )
+            prev_dim = self.backbone[-1].weight.shape[1]  # TODO: @Fabio please double check
+            self.backbone[-1] = torch.nn.Identity()  # # TODO: @Fabio please double check
+
+        print("Backbone:\n", self.backbone)
 
         # build a 3-layer projector
         if neps_hyperparameters is None or "hierarchical_projector" not in neps_hyperparameters:
