@@ -76,7 +76,7 @@ def get_hierarchical_backbone(user_prior=None):  # ResNet18
     structure = {
         "S": [
             "Sequential4 block-stride1 block2 block2 block2",  # baseline
-            "Sequential4 block-stride1 block1 block4 block2",  # comment out for running locally
+            "Sequential4 block-stride1 block1 block4 block2",
             "Sequential4 block-stride1 block2 block4 block1",
             # Not used for the moment (maybe later for rebuttal?)
             # "Sequential4 block2 block2 block2 block2",
@@ -110,12 +110,20 @@ def get_hierarchical_backbone(user_prior=None):  # ResNet18
         ],
     }
 
-    # TODO: integrate user prior
-    # prior_distr = {
-    #     "S": [0.5, 0.25, 0.25],  # TODO: give probability for each element in S
-    #     "ResNetBB_stride1": [1 / 4 for _ in range(4)],
-    #     # TODO: Do for all groups
-    # }
+    # TODO: @Fábio please double check
+    prior_distr = {
+        "S": [0.5, 0.25, 0.25],
+        "block-stride1": [1.0],
+        "block1": [1.0],
+        "block2": [1.0],
+        "block4": [1.0],
+        "ResNetBB_stride1": [
+            1 / 2 for _ in range(2)
+        ],  # TODO: After BatchNormalization Error is fixed use: "ResNetBB_stride1": [0.25, 0.25, 0.25, 0.25],  # TODO remove: # noqa: E501
+        "ResNetBB_stride2": [
+            1 / 2 for _ in range(2)
+        ],  # TODO: After BatchNormalization Error is fixed use: "ResNetBB_stride2": [0.25, 0.25, 0.25, 0.25],  # # TODO remove: # noqa: E501
+    }
 
     def set_recursive_attribute(op_name, predecessor_values):
         in_channels = 64 if predecessor_values is None else predecessor_values["C_out"]
@@ -127,7 +135,7 @@ def get_hierarchical_backbone(user_prior=None):  # ResNet18
         set_recursive_attribute=set_recursive_attribute,
         structure=structure,
         primitives=primitives,
-        # TODO: prior=prior_distr if config.neps.is_user_prior else None,
+        prior=prior_distr if user_prior else None,
         name="hierarchical_backbone",
     )
 
@@ -159,15 +167,14 @@ def get_hierarchical_projector(prev_dim, user_prior=None):  # encoder head
             "diamond block block block block",
         ],
         "block": [
-            "linear3 transform activation norm",  # TODO: delete?
-            "linear3 transform norm activation",
+            "linear3 transform norm activation",  # baseline
             "linear transform norm",
             "linear transform activation",
             "transform",
             "neutral",
         ],
         "transform": ["FullyConnected"],
-        "activation": ["ReLU", "LeakyReLU", "GELU"],  # TODO: remove ReLU
+        "activation": ["ReLU", "GELU"],
         "norm": ["BatchNorm", "LayerNorm"],
         "neutral": ["Identity"],
     }
@@ -184,14 +191,22 @@ def get_hierarchical_projector(prev_dim, user_prior=None):  # encoder head
     # (7): BatchNorm1d(2048, eps=1e-05, momentum=0.1, affine=False, track_running_stats=True)  > FIX
     # )
 
-    # TODO: integrate user prior
+    # TODO: @Fábio please double check
+    prior_distr = {
+        "S": [0.4, 0.2, 0.2, 0.2],  # baseline is weighted with 0.4
+        "block": [0.4, 0.15, 0.15, 0.15, 0.15],  # baseline is weighted with 0.4
+        "transform": [1.0],
+        "activation": [0.5, 0.5],
+        "norm": [0.5, 0.5],
+        "neutral": [1.0],
+    }
 
     # Generated hierarchical_projector
     hierarchical_projector = neps.FunctionParameter(
         set_recursive_attribute=None,
         structure=structure,
         primitives=primitives,
-        # TODO: prior=prior_distr if config.neps.is_user_prior else None,
+        prior=prior_distr if user_prior else None,
         name="hierarchical_projector",
     )
 
@@ -219,7 +234,6 @@ def get_hierarchical_predictor(prev_dim, user_prior=None):
         "S": ["linear finish-block S2"],
         "finish-block": [
             "linear norm activation",
-            "linear activation norm",  # TODO: delete?
             "linear norm neutral",
             "linear activation neutral",
             "linear neutral neutral",
@@ -231,7 +245,6 @@ def get_hierarchical_predictor(prev_dim, user_prior=None):
             "diamond block block block block",
         ],
         "block": [
-            "linear3 transform activation norm",  # TODO: delete?
             "linear3 transform norm activation",
             "linear transform norm",
             "linear transform activation",
@@ -239,7 +252,7 @@ def get_hierarchical_predictor(prev_dim, user_prior=None):
             "neutral",
         ],
         "transform": ["FullyConnected"],
-        "activation": ["ReLU", "LeakyReLU", "GELU"],  # TODO: remove ReLU
+        "activation": ["ReLU", "GELU"],
         "norm": ["BatchNorm", "LayerNorm"],
         "neutral": ["Identity"],
     }
@@ -252,14 +265,24 @@ def get_hierarchical_predictor(prev_dim, user_prior=None):
     # (3): Linear(in_features=512, out_features=2048, bias=True)   > FIX
     # )
 
-    # TODO: integrate user prior
+    # TODO: @Fábio please double check
+    prior_distr = {
+        "S": [1.0],
+        "finish-block": [0.4, 0.2, 0.2, 0.2],  # baseline is weighted with 0.4
+        "S2": [0.4, 0.2, 0.2, 0.2],  # baseline is weighted with 0.4
+        "block": [0.15, 0.15, 0.15, 0.15, 0.4],  # baseline is weighted with 0.4
+        "transform": [1.0],
+        "activation": [0.5, 0.5],
+        "norm": [0.5, 0.5],
+        "neutral": [1.0],
+    }
 
     # Generated hierarchical_predictor
     hierarchical_predictor = neps.FunctionParameter(
         set_recursive_attribute=None,
         structure=structure,
         primitives=primitives,
-        # TODO: prior=prior_distr if config.neps.is_user_prior else None,
+        prior=prior_distr if user_prior else None,
         name="hierarchical_predictor",
     )
 
