@@ -48,8 +48,8 @@ def get_neps_pipeline_space(config):
                     lower=0,
                     upper=255,
                     log=False,
-                    default=255,
-                    default_confidence="low",  # TODO: check BYOL + update confidence
+                    default=127,
+                    default_confidence="medium",  # default as in BYOL paper
                 ),
             )
         else:
@@ -139,7 +139,7 @@ def get_neps_pipeline_space(config):
         return pipeline_space
     # ----------------------------------------------------------------------------------------------
     # TODO: optimize backbone-only or backbone + projector + predictor?
-    elif config_space == "combined":  # TODO: update changes
+    elif config_space == "combined":
         if user_prior:
             pipeline_space = dict(
                 # DATA AUGMENTATION
@@ -178,9 +178,8 @@ def get_neps_pipeline_space(config):
                     lower=0,
                     upper=255,
                     log=False,
-                    default=255,
-                    default_confidence="low"
-                    # TODO: check BYOL + update confidence
+                    default=127,
+                    default_confidence="medium",  # default as in BYOL paper
                 ),
                 # HIERARCHICAL NAS
                 hierarchical_backbone=get_hierarchical_backbone(user_prior=user_prior),
