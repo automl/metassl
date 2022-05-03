@@ -19,8 +19,7 @@ python -m metassl.train_simsiam --config "metassl/default_metassl_config_cifar10
 				--expt.is_non_grad_based \
 				--expt.multiprocessing_distributed \
 				--neps.is_neps_run \
-				--finetuning.valid_size 0.1 \
+				--finetuning.valid_size 0.2 \
 				--expt.expt_name $EXPERIMENT_NAME \
 				--neps.config_space parameterized_cifar10_augmentation_with_solarize \
 				--neps.is_user_prior
-
