@@ -76,7 +76,7 @@ def get_hierarchical_backbone(user_prior=None):  # ResNet18
     structure = {
         "S": [
             "Sequential4 block-stride1 block2 block2 block2",  # baseline
-            # "Sequential4 block-stride1 block1 block4 block2",  # TODO: RuntimeError: CUDA out of memory. > Check on the cluster  # noqa: E501
+            "Sequential4 block-stride1 block1 block4 block2",  # comment out for running locally
             "Sequential4 block-stride1 block2 block4 block1",
             # Not used for the moment (maybe later for rebuttal?)
             # "Sequential4 block2 block2 block2 block2",
@@ -97,13 +97,13 @@ def get_hierarchical_backbone(user_prior=None):  # ResNet18
             "Sequential4 ResNetBB_stride2 ResNetBB_stride1 ResNetBB_stride2 ResNetBB_stride1",
         ],
         "ResNetBB_stride1": [
-            # "ResNetBB_BN_GELU_1",    # TODO: RuntimeError: CUDA out of memory; BUT: works sometimes > Check on the cluster  # noqa: E501
+            "ResNetBB_BN_GELU_1",
             # "ResNetBB_LN_GELU_1",  # TODO: RuntimeError: Given normalized_shape=[128], expected input with shape [*, 128], but got input of size[512, 128, 16, 16]  # noqa: E501
             "ResNetBB_BN_ReLU_1",  # baseline
             # "ResNetBB_LN_ReLU_1",  # TODO: RuntimeError: Given normalized_shape=[64], expected input with shape [*, 64], but got input of size[512, 64, 32, 32]  # noqa: E501
         ],
         "ResNetBB_stride2": [
-            # "ResNetBB_BN_GELU_2",  # TODO: RuntimeError: CUDA out of memory; BUT: works sometimes > Check on the cluster  # noqa: E501
+            "ResNetBB_BN_GELU_2",
             # "ResNetBB_LN_GELU_2",  # TODO: RuntimeError: Given normalized_shape=[128], expected input with shape [*, 128], but got input of size[512, 128, 16, 16]  # noqa: E501
             "ResNetBB_BN_ReLU_2",  # baseline
             # "ResNetBB_LN_ReLU_2",  # TODO: RuntimeError: Given normalized_shape=[128], expected input with shape [*, 128], but got input of size[512, 128, 16, 16]  # noqa: E501
