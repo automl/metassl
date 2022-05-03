@@ -843,7 +843,7 @@ if __name__ == "__main__":
             run_pipeline=main,
             pipeline_space=pipeline_space,
             working_directory=expt_dir,
-            max_evaluations_total=500,
+            max_evaluations_total=600,
             max_evaluations_per_run=1,
             overwrite_working_directory=False,  # Set True for debuggingq
         )
