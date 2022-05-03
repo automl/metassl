@@ -827,6 +827,11 @@ if __name__ == "__main__":
                 "The optimize_backebone_only flag makes only sense for the following configspaces: "
                 "'hierarchical_nas' and 'combined'"
             )
+        if config.neps.is_neps_run and config.finetuning.valid_size != 0.2:
+            raise ValueError(
+                "valid_size needs to be > 0 (for our experiments 0.2) for NEPS runs as a validation"
+                " set is required!"
+            )
 
         # Get NEPS config space with/without user prior
         # Config spaces choices: ["data_augmentation", "hierarchical_nas", "training", "combined"]
