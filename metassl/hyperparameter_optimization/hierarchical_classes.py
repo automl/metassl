@@ -11,7 +11,7 @@ class Identity(AbstractPrimitive):
     def __init__(self, **kwargs):
         super().__init__(locals())
 
-    def forward(self, x, edge_data):
+    def forward(self, x, edge_data=None):
         return x
 
     def get_embedded_ops(self):
@@ -76,7 +76,7 @@ class ConvNormActivation(AbstractPrimitive):
             activation,
         )
 
-    def forward(self, x, edge_data):
+    def forward(self, x, edge_data=None):
         return self.op(x)
 
     def get_embedded_ops(self):
@@ -113,7 +113,7 @@ class ConvNorm(AbstractPrimitive):
             norm,
         )
 
-    def forward(self, x, edge_data):
+    def forward(self, x, edge_data=None):
         return self.op(x)
 
     def get_embedded_ops(self):
@@ -143,7 +143,7 @@ class ConvNorm(AbstractPrimitive):
 #
 #         self.relu = nn.ReLU(inplace=True)
 #
-#     def forward(self, x, edge_data):  # pylint: disable=W0613
+#     def forward(self, x, edge_data=None):  # pylint: disable=W0613
 #         basicblock = self.conv_a(x, None)
 #         basicblock = self.conv_b(basicblock, None)
 #         residual = self.downsample(x) if self.downsample is not None else x
@@ -186,7 +186,7 @@ class ResNetBasicBlockStride1(AbstractPrimitive):
         else:
             self.downsample = None
 
-    def forward(self, x, edge_data):  # pylint: disable=W0613
+    def forward(self, x, edge_data=None):  # pylint: disable=W0613
         basicblock = self.conv_a(x, None)
         basicblock = self.conv_b(basicblock, None)
         residual = self.downsample(x) if self.downsample is not None else x
@@ -229,7 +229,7 @@ class ResNetBasicBlockStride2(AbstractPrimitive):
         else:
             self.downsample = None
 
-    def forward(self, x, edge_data):  # pylint: disable=W0613
+    def forward(self, x, edge_data=None):  # pylint: disable=W0613
         basicblock = self.conv_a(x, None)
         basicblock = self.conv_b(basicblock, None)
         residual = self.downsample(x) if self.downsample is not None else x
