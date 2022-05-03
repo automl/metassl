@@ -153,13 +153,13 @@ def get_hierarchical_projector(prev_dim, user_prior=None):  # encoder head
 
     structure = {
         "S": [
-            "linear block block",
+            "linear block block",  # baseline
             "linear3 block block block",
             "linear4 block block block block",
             "diamond block block block block",
         ],
         "block": [
-            "linear3 transform activation norm",
+            "linear3 transform activation norm",  # TODO: delete?
             "linear3 transform norm activation",
             "linear transform norm",
             "linear transform activation",
@@ -167,7 +167,7 @@ def get_hierarchical_projector(prev_dim, user_prior=None):  # encoder head
             "neutral",
         ],
         "transform": ["FullyConnected"],
-        "activation": ["ReLU", "LeakyReLU", "GELU"],
+        "activation": ["ReLU", "LeakyReLU", "GELU"],  # TODO: remove ReLU
         "norm": ["BatchNorm", "LayerNorm"],
         "neutral": ["Identity"],
     }
@@ -219,7 +219,7 @@ def get_hierarchical_predictor(prev_dim, user_prior=None):
         "S": ["linear finish-block S2"],
         "finish-block": [
             "linear norm activation",
-            "linear activation norm",
+            "linear activation norm",  # TODO: delete?
             "linear norm neutral",
             "linear activation neutral",
             "linear neutral neutral",
@@ -231,7 +231,7 @@ def get_hierarchical_predictor(prev_dim, user_prior=None):
             "diamond block block block block",
         ],
         "block": [
-            "linear3 transform activation norm",
+            "linear3 transform activation norm",  # TODO: delete?
             "linear3 transform norm activation",
             "linear transform norm",
             "linear transform activation",
@@ -239,7 +239,7 @@ def get_hierarchical_predictor(prev_dim, user_prior=None):
             "neutral",
         ],
         "transform": ["FullyConnected"],
-        "activation": ["ReLU", "LeakyReLU", "GELU"],
+        "activation": ["ReLU", "LeakyReLU", "GELU"],  # TODO: remove ReLU
         "norm": ["BatchNorm", "LayerNorm"],
         "neutral": ["Identity"],
     }

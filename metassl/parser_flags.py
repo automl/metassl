@@ -455,6 +455,12 @@ def get_parsed_config():
         help="Define which configspace to use.",
     )
     parser.add_argument(
+        "--neps.optimize_backbone_only",
+        action="store_true",
+        help="Set this for configspaces optimizing hierarchical NAS if you want to optimize only "
+        "the backbone.",
+    )
+    parser.add_argument(
         "--neps.is_user_prior",
         action="store_true",
         help="Set this flag to run a NEPS experiment with user prior.",

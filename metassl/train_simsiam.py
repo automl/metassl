@@ -32,6 +32,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from metassl.hyperparameter_optimization.configspaces import get_neps_pipeline_space
 from metassl.parser_flags import get_parsed_config
+from metassl.utils.lars_optimizer import LARS
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -384,7 +385,12 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
                 weight_decay=config.train.weight_decay,
             )
         elif neps_hyperparameters["pt_optimizer"] == "lars":
-            raise NotImplementedError("TODO: Add LARS optimizer")
+            optimizer_pt = LARS(
+                params=model.parameters(),
+                lr=init_lr_pt,
+                weight_decay=config.train.weight_decay,
+                momentum=config.train.momentum,
+            )
         else:
             raise NotImplementedError(
                 "{neps_hyperparameters['pt_optimizer']} is not implemented yet!"
@@ -808,14 +814,23 @@ if __name__ == "__main__":
             format="%(asctime)s %(levelname)-8s [%(name)s] %(message)s",
         )
 
+        # Checks
+        if config.data.dataset != "CIFAR10":
+            raise NotImplementedError(
+                "Please fix some CIFAR10 hardcoding in pipeline_space to start NEPS experiments "
+                "with another dataset!"
+            )
+        if config.neps.optimize_backbone_only and not (
+            config.neps.config_space == "hierarchical_nas" or config.neps.config_space == "combined"
+        ):  # TODO: Flag only for "hierarchical_nas" or for both "hierarchical_nas" and "combined"?
+            raise ValueError(
+                "The optimize_backebone_only flag makes only sense for the following configspaces: "
+                "'hierarchical_nas' and 'combined'"
+            )
+
         # Get NEPS config space with/without user prior
         # Config spaces choices: ["data_augmentation", "hierarchical_nas", "training", "combined"]
-        if config.data.dataset == "CIFAR10":
-            pipeline_space = get_neps_pipeline_space(
-                config_space=config.neps.config_space, user_prior=config.neps.is_user_prior
-            )
-        else:
-            raise NotImplementedError("Please fix some CIFAR10 hardcoding in pipeline_space")
+        pipeline_space = get_neps_pipeline_space(config=config)
 
         # Start NEPS
         main = partial(main, config=config)

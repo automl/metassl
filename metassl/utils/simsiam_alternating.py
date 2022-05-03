@@ -20,10 +20,12 @@ class SimSiam(nn.Module):
         # create the encoder
         # num_classes is the output fc dimension, zero-initialize last BNs
         if neps_hyperparameters is None or "hierarchical_backbone" not in neps_hyperparameters:
+            print("DEFAULT BACKBONE")
             self.backbone: ResNet = base_encoder(num_classes=dim, zero_init_residual=False)
             prev_dim = self.backbone.fc.weight.shape[1]
             self.backbone.fc = torch.nn.Identity()
         else:
+            print("HIERARCHICAL BACKBONE")
             hierarchical_backbone = neps_hyperparameters["hierarchical_backbone"].to_pytorch()
             in_channels = 3
             base_channels = 64
@@ -46,6 +48,7 @@ class SimSiam(nn.Module):
 
         # build a 3-layer projector
         if neps_hyperparameters is None or "hierarchical_projector" not in neps_hyperparameters:
+            print("DEFAULT PROJECTOR")
             self.encoder_head = nn.Sequential(
                 nn.Linear(prev_dim, prev_dim, bias=False),
                 nn.BatchNorm1d(prev_dim),
@@ -57,6 +60,7 @@ class SimSiam(nn.Module):
                 nn.BatchNorm1d(dim, affine=False),
             )
         else:
+            print("HIERARCHICAL PROJECTOR")
             hierarchical_projector = neps_hyperparameters["hierarchical_projector"].to_pytorch()
             self.encoder_head = nn.Sequential(
                 hierarchical_projector,
@@ -70,6 +74,7 @@ class SimSiam(nn.Module):
 
         # build a 2-layer predictor
         if neps_hyperparameters is None or "hierarchical_predictor" not in neps_hyperparameters:
+            print("DEFAULT PREDICTOR")
             self.predictor = nn.Sequential(
                 nn.Linear(dim, pred_dim, bias=False),
                 nn.BatchNorm1d(pred_dim),
@@ -77,6 +82,7 @@ class SimSiam(nn.Module):
                 nn.Linear(pred_dim, dim),  # output layer
             )
         else:
+            print("HIERARCHICAL PREDICTOR")
             hierarchical_predictor = neps_hyperparameters["hierarchical_predictor"].to_pytorch()
             self.predictor = nn.Sequential(
                 nn.Linear(dim, pred_dim, bias=False),
