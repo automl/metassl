@@ -76,79 +76,50 @@ def get_hierarchical_backbone(user_prior=None):  # ResNet18
 
     structure = {
         "S": [
-            # LayerNorm
-            "Sequential4 block-stride1LN block2LN block2LN block2LN",
-            "Sequential4 block-stride1LN block1LN block4LN block2LN",
-            "Sequential4 block-stride1LN block2LN block4LN block1LN",
-            # BatchNorm
-            "Sequential4 block-stride1BN block2BN block2BN block2BN",  # baseline
-            "Sequential4 block-stride1BN block1BN block4BN block2BN",
-            "Sequential4 block-stride1BN block2BN block4BN block1BN",
+            "Sequential4 block-stride1 block2 block2 block2",  # baseline
+            "Sequential4 block-stride1 block1 block4 block2",
+            "Sequential4 block-stride1 block2 block4 block1",
             # Not used for the moment (maybe later for rebuttal?)
             # "Sequential4 block2 block2 block2 block2",
             # "Sequential4 block-stride1 block-stride1 block4 block2",
             # "Sequential4 block-stride1 block2 block4 block2",
             # "Sequential4 block2 block2 block4 block2",
         ],
-        "block-stride1BN": [
-            "Sequential ResNetBB_stride1BN ResNetBB_stride1BN",
+        "block-stride1": [
+            "Sequential ResNetBB_stride1 ResNetBB_stride1",
         ],
-        "block1BN": [
-            "Sequential ResNetBB_stride1BN Identity",
+        "block1": [
+            "Sequential ResNetBB_stride1 Identity",
         ],
-        "block2BN": [
-            "Sequential ResNetBB_stride2BN ResNetBB_stride1BN",
+        "block2": [
+            "Sequential ResNetBB_stride2 ResNetBB_stride1",
         ],
-        "block4BN": [
-            "Sequential4 ResNetBB_stride2BN ResNetBB_stride1BN ResNetBB_stride2BN "
-            "ResNetBB_stride1BN",
+        "block4": [
+            "Sequential4 ResNetBB_stride2 ResNetBB_stride1 ResNetBB_stride2 " "ResNetBB_stride1",
         ],
-        "block-stride1LN": [
-            "Sequential ResNetBB_stride1LN ResNetBB_stride1LN",
-        ],
-        "block1LN": [
-            "Sequential ResNetBB_stride1LN Identity",
-        ],
-        "block2LN": [
-            "Sequential ResNetBB_stride2LN ResNetBB_stride1LN",
-        ],
-        "block4LN": [
-            "Sequential4 ResNetBB_stride2LN ResNetBB_stride1LN ResNetBB_stride2LN "
-            "ResNetBB_stride1LN",
-        ],
-        "ResNetBB_stride1LN": [
+        "ResNetBB_stride1": [
+            "ResNetBB_BN_GELU_1",
+            "ResNetBB_BN_ReLU_1",  # baseline
             "ResNetBB_LN_GELU_1",
             "ResNetBB_LN_ReLU_1",
         ],
-        "ResNetBB_stride2LN": [
-            "ResNetBB_LN_GELU_2",
-            "ResNetBB_LN_ReLU_2",
-        ],
-        "ResNetBB_stride1BN": [
-            "ResNetBB_BN_GELU_1",
-            "ResNetBB_BN_ReLU_1",  # baseline
-        ],
-        "ResNetBB_stride2BN": [
+        "ResNetBB_stride2": [
             "ResNetBB_BN_GELU_2",
             "ResNetBB_BN_ReLU_2",  # baseline
+            "ResNetBB_LN_GELU_2",
+            "ResNetBB_LN_ReLU_2",
         ],
     }
 
     prior_distr = {
         # "S":                  [0.5, 0.25, 0.25],
-        "S": [0.3, 0.1, 0.1, 0.3, 0.1, 0.1],
-        "block-stride1BN": [1.0],
-        "block-stride1LN": [1.0],
-        "block1BN": [1.0],
-        "block1LN": [1.0],
-        "block2BN": [1.0],
-        "block2LN": [1.0],
-        "block4BN": [1.0],
-        "block4LN": [1.0],
-        "ResNetBB_stride1BN": [0.5, 0.5],
-        "ResNetBB_stride1LN": [0.5, 0.5],
-        "ResNetBB_stride2BN": [0.5, 0.5],
-        "ResNetBB_stride2LN": [0.5, 0.5],
+        "S": [0.5, 0.25, 0.25],
+        "block-stride1": [1.0],
+        "block1": [1.0],
+        "block2": [1.0],
+        "block4": [1.0],
+        "ResNetBB_stride1": [0.2, 0.2, 0.4, 0.2],
+        "ResNetBB_stride2": [0.2, 0.2, 0.4, 0.2],
     }
 
     assert all(
@@ -191,35 +162,21 @@ def get_hierarchical_projector(prev_dim, user_prior=None):  # encoder head
 
     structure = {
         "S": [
-            # BatchNorm
-            "linear blockBN blockBN",  # baseline
-            "linear3 blockBN blockBN blockBN",
-            "linear4 blockBN blockBN blockBN blockBN",
-            "diamond blockBN blockBN blockBN blockBN",
-            # LayerNorm
-            "linear blockLN blockLN",
-            "linear3 blockLN blockLN blockLN",
-            "linear4 blockLN blockLN blockLN blockLN",
-            "diamond blockLN blockLN blockLN blockLN",
+            "linear block block",  # baseline
+            "linear3 block block block",
+            "linear4 block block block block",
+            "diamond block block block block",
         ],
-        "blockBN": [
-            "linear3 transform normBN activation",  # baseline
-            "linear transform normBN",
-            "linear transform activation",
-            "transform",
-            "neutral",
-        ],
-        "blockLN": [
-            "linear3 transform normLN activation",
-            "linear transform normLN",
+        "block": [
+            "linear3 transform norm activation",  # baseline
+            "linear transform norm",
             "linear transform activation",
             "transform",
             "neutral",
         ],
         "transform": ["FullyConnected"],
         "activation": ["ReLU", "GELU"],
-        "normBN": ["BatchNorm"],
-        "normLN": ["LayerNorm"],
+        "norm": ["BatchNorm", "LayerNorm"],
         "neutral": ["Identity"],
     }
 
@@ -236,13 +193,11 @@ def get_hierarchical_projector(prev_dim, user_prior=None):  # encoder head
     # )
 
     prior_distr = {
-        "S": [0.2, 0.1, 0.1, 0.1, 0.2, 0.1, 0.1, 0.1],  # baseline is weighted with 0.4
-        "blockBN": [0.4, 0.15, 0.15, 0.15, 0.15],  # baseline is weighted with 0.4
-        "blockLN": [0.4, 0.15, 0.15, 0.15, 0.15],
+        "S": [0.4, 0.2, 0.2, 0.2],  # baseline is weighted with 0.4
+        "block": [0.4, 0.15, 0.15, 0.15, 0.15],  # baseline is weighted with 0.4
         "transform": [1.0],
         "activation": [0.5, 0.5],
-        "normBN": [1.0],
-        "normLN": [1.0],
+        "norm": [0.5, 0.5],
         "neutral": [1.0],
     }
 
@@ -280,49 +235,29 @@ def get_hierarchical_predictor(prev_dim, user_prior=None):
     }
 
     structure = {
-        "S": ["linear finish-blockBN S2BN", "linear finish-blockLN S2LN"],
-        "finish-blockBN": [
-            "linear normBN activation",
-            "linear normBN neutral",
+        "S": ["linear finish-block S2"],
+        "finish-block": [
+            "linear norm activation",
+            "linear norm neutral",
             "linear activation neutral",
             "linear neutral neutral",
         ],
-        "finish-blockLN": [
-            "linear normLN activation",
-            "linear normLN neutral",
-            "linear activation neutral",
-            "linear neutral neutral",
+        "S2": [
+            "linear block block",
+            "linear3 block block block",
+            "linear4 block block block block",
+            "diamond block block block block",
         ],
-        "S2BN": [
-            "linear blockBN blockBN",
-            "linear3 blockBN blockBN blockBN",
-            "linear4 blockBN blockBN blockBN blockBN",
-            "diamond blockBN blockBN blockBN blockBN",
-        ],
-        "S2LN": [
-            "linear blockLN blockLN",
-            "linear3 blockLN blockLN blockLN",
-            "linear4 blockLN blockLN blockLN blockLN",
-            "diamond blockLN blockLN blockLN blockLN",
-        ],
-        "blockBN": [
-            "linear3 transform normBN activation",
-            "linear transform normBN",
-            "linear transform activation",
-            "transform",
-            "neutral",
-        ],
-        "blockLN": [
-            "linear3 transform normLN activation",
-            "linear transform normLN",
+        "block": [
+            "linear3 transform norm activation",
+            "linear transform norm",
             "linear transform activation",
             "transform",
             "neutral",
         ],
         "transform": ["FullyConnected"],
         "activation": ["ReLU", "GELU"],
-        "normBN": ["BatchNorm"],
-        "normLN": ["LayerNorm"],
+        "norm": ["BatchNorm", "LayerNorm"],
         "neutral": ["Identity"],
     }
 
@@ -336,17 +271,13 @@ def get_hierarchical_predictor(prev_dim, user_prior=None):
 
     # TODO: @Diane please double check
     prior_distr = {
-        "S": [0.5, 0.5],
-        "finish-blockBN": [0.4, 0.2, 0.2, 0.2],  # baseline is weighted with 0.4
-        "finish-blockLN": [0.4, 0.2, 0.2, 0.2],
-        "S2BN": [0.4, 0.2, 0.2, 0.2],  # baseline is weighted with 0.4
-        "S2LN": [0.4, 0.2, 0.2, 0.2],
-        "blockBN": [0.15, 0.15, 0.15, 0.15, 0.4],  # baseline is weighted with 0.4
-        "blockLN": [0.15, 0.15, 0.15, 0.15, 0.4],
+        "S": [1.0],
+        "finish-block": [0.4, 0.2, 0.2, 0.2],  # baseline is weighted with 0.4
+        "S2": [0.4, 0.2, 0.2, 0.2],  # baseline is weighted with 0.4
+        "block": [0.15, 0.15, 0.15, 0.15, 0.4],  # baseline is weighted with 0.4
         "transform": [1.0],
         "activation": [0.5, 0.5],
-        "normBN": [1.0],
-        "normLN": [1.0],
+        "norm": [0.5, 0.5],
         "neutral": [1.0],
     }
 
