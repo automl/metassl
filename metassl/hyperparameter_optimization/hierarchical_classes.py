@@ -1,3 +1,5 @@
+import torch
+import torch.nn.functional as F
 from neps.search_spaces.graph_grammar.primitives import AbstractPrimitive
 from neps.search_spaces.graph_grammar.topologies import AbstractTopology
 from torch import nn
@@ -53,7 +55,7 @@ class ConvNormActivation(AbstractPrimitive):
         if norm == "BatchNorm":
             norm = nn.BatchNorm2d(C_out, affine=affine)
         elif norm == "LayerNorm":
-            norm = nn.LayerNorm(C_out)
+            norm = LayerNorm(C_out, data_format="channels_first")
         elif norm == "None":
             norm = nn.Identity()
         else:
@@ -74,7 +76,7 @@ class ConvNormActivation(AbstractPrimitive):
             nn.Conv2d(C_in, C_out, kernel_size, stride=stride, padding=pad, bias=False),
             norm,
             activation,
-        )
+            )
 
     def forward(self, x, edge_data=None):
         return self.op(x)
@@ -100,7 +102,7 @@ class ConvNorm(AbstractPrimitive):
         if norm == "BatchNorm":
             norm = nn.BatchNorm2d(C_out, affine=affine)
         elif norm == "LayerNorm":
-            norm = nn.LayerNorm(C_out)
+            norm = LayerNorm(C_out, data_format="channels_first")
         elif norm == "None":
             norm = nn.Identity()
         else:
@@ -111,7 +113,7 @@ class ConvNorm(AbstractPrimitive):
         self.op = nn.Sequential(
             nn.Conv2d(C_in, C_out, kernel_size, stride=stride, padding=pad, bias=False),
             norm,
-        )
+            )
 
     def forward(self, x, edge_data=None):
         return self.op(x)
@@ -157,7 +159,7 @@ class ConvNorm(AbstractPrimitive):
 class ResNetBasicBlockStride1(AbstractPrimitive):
     def __init__(
         self, C_in, C_out, norm="LayerNorm", activation="GELU", stride=2, affine=True, **kwargs
-    ):  # pylint:disable=W0613
+        ):  # pylint:disable=W0613
         super().__init__(locals())
         assert stride == 1 or stride == 2, f"invalid stride {stride}"
         # if stride == 2:
@@ -171,7 +173,7 @@ class ResNetBasicBlockStride1(AbstractPrimitive):
         if norm == "BatchNorm":
             norm = nn.BatchNorm2d(C_out, affine=affine)
         elif norm == "LayerNorm":
-            norm = nn.LayerNorm(C_out)
+            norm = LayerNorm(C_out, data_format="channels_first")
         elif norm == "None":
             norm = nn.Identity()
         else:
@@ -182,7 +184,7 @@ class ResNetBasicBlockStride1(AbstractPrimitive):
                 # nn.AvgPool2d(kernel_size=2, stride=2, padding=0),
                 nn.Conv2d(C_in, C_out, kernel_size=1, stride=2, padding=0, bias=False),
                 norm,
-            )
+                )
         else:
             self.downsample = None
 
@@ -200,7 +202,7 @@ class ResNetBasicBlockStride1(AbstractPrimitive):
 class ResNetBasicBlockStride2(AbstractPrimitive):
     def __init__(
         self, C_in, C_out, norm="LayerNorm", activation="GELU", stride=2, affine=True, **kwargs
-    ):  # pylint:disable=W0613
+        ):  # pylint:disable=W0613
         super().__init__(locals())
         assert stride == 1 or stride == 2, f"invalid stride {stride}"
         # if stride == 2:
@@ -214,7 +216,7 @@ class ResNetBasicBlockStride2(AbstractPrimitive):
         if norm == "BatchNorm":
             norm = nn.BatchNorm2d(C_out, affine=affine)
         elif norm == "LayerNorm":
-            norm = nn.LayerNorm(C_out)
+            norm = LayerNorm(C_out, data_format="channels_first")
         elif norm == "None":
             norm = nn.Identity()
         else:
@@ -225,7 +227,7 @@ class ResNetBasicBlockStride2(AbstractPrimitive):
                 # nn.AvgPool2d(kernel_size=2, stride=2, padding=0),
                 nn.Conv2d(C_in, C_out, kernel_size=1, stride=2, padding=0, bias=False),
                 norm,
-            )
+                )
         else:
             self.downsample = None
 
@@ -324,32 +326,70 @@ class BatchNorm(AbstractPrimitive):
         return op_name
 
 
+# class LayerNorm(AbstractPrimitive):
+#     """
+#     Implementation of a 2d batch normalization.
+#     """
+#
+#     def __init__(self, prev_dim, affine=True, **kwargs):
+#         super().__init__(locals())
+#         self.op = nn.LayerNorm(prev_dim)
+#
+#     def forward(self, x, edge_data=None):
+#         return self.op(x)
+#
+#     def get_embedded_ops(self):
+#         return None
+#
+#     @property
+#     def get_op_name(self):
+#         op_name = "LayerNorm"
+#         return op_name
+
+
 class LayerNorm(AbstractPrimitive):
-    """
-    Implementation of a 2d batch normalization.
+    r""" LayerNorm that supports input from Conv2D, i.e. two data formats: channels_last (default)
+    or channels_first. The ordering of the dimensions in the inputs. channels_last corresponds to
+     inputs with shape (batch_size, height, width, channels) while channels_first corresponds to
+     inputs with shape (batch_size, channels, height, width).
+    Taken from https://github.com/facebookresearch/ConvNeXt/blob/main/models/convnext.py.
     """
 
-    def __init__(self, prev_dim, affine=True, **kwargs):
+    def __init__(self, num_features, eps=1e-6, data_format="channels_last"):
+        # super().__init__()
         super().__init__(locals())
-        self.op = nn.LayerNorm(prev_dim)
+        self.weight = nn.Parameter(torch.ones(num_features))
+        self.bias = nn.Parameter(torch.zeros(num_features))
+        self.eps = eps
+        self.data_format = data_format
+        if self.data_format not in ["channels_last", "channels_first"]:
+            raise NotImplementedError
+        self.normalized_shape = (num_features,)
 
-    def forward(self, x, edge_data=None):
-        return self.op(x)
-
-    def get_embedded_ops(self):
-        return None
+    def forward(self, x):
+        if self.data_format == "channels_last":
+            return F.layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
+        elif self.data_format == "channels_first":
+            u = x.mean(1, keepdim=True)
+            s = (x - u).pow(2).mean(1, keepdim=True)
+            x = (x - u) / torch.sqrt(s + self.eps)
+            x = self.weight[:, None, None] * x + self.bias[:, None, None]
+            return x
 
     @property
     def get_op_name(self):
         op_name = "LayerNorm"
         return op_name
 
+    def get_embedded_ops(self):
+        return None
+
 
 class Sequential(AbstractTopology):
     edge_list = [
         (1, 2),
         (2, 3),
-    ]
+        ]
 
     def __init__(self, *edge_vals):
         super().__init__()
