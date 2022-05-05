@@ -473,3 +473,45 @@ class Sequential5Edge(AbstractTopology):
         self.name = f"Sequential_{number_of_edges}_Edges"
         self.create_graph(dict(zip(self.edge_list, edge_vals)))
         self.set_scope(self.name)
+
+
+class Sequential9Edge(AbstractTopology):
+        edge_list: list = [(1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 10)]
+
+        def __init__(self, *edge_vals):
+            super().__init__()
+            number_of_edges = 9
+            self.name = f"Sequential_{number_of_edges}_Edges"
+            self.create_graph(dict(zip(self.edge_list, edge_vals)))
+            self.set_scope(self.name)
+
+class Sequential10Edge(AbstractTopology):
+        edge_list: list = [(1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 10), (10, 11)]
+
+        def __init__(self, *edge_vals):
+            super().__init__()
+            number_of_edges = 10
+            self.name = f"Sequential_{number_of_edges}_Edges"
+            self.create_graph(dict(zip(self.edge_list, edge_vals)))
+            self.set_scope(self.name)
+
+
+class Sequential11Edge(AbstractTopology):
+        edge_list: list = [(1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 10), (10, 11), (11, 12)]
+
+        def __init__(self, *edge_vals):
+            super().__init__()
+            number_of_edges = 11
+            self.name = f"Sequential_{number_of_edges}_Edges"
+            self.create_graph(dict(zip(self.edge_list, edge_vals)))
+            self.set_scope(self.name)
+
+class Sequential12Edge(AbstractTopology):
+        edge_list: list = [(1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 10), (10, 11), (11, 12), (12, 13)]
+
+        def __init__(self, *edge_vals):
+            super().__init__()
+            number_of_edges = 12
+            self.name = f"Sequential_{number_of_edges}_Edges"
+            self.create_graph(dict(zip(self.edge_list, edge_vals)))
+            self.set_scope(self.name)

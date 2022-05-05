@@ -189,7 +189,7 @@ def main(working_directory, config, bohb_infos=None, **hyperparameters):
                 bohb_infos,
                 neps_hyperparameters,
             )
-        except KeyError as e:
+        except Exception as e:
             print("\n\n RETURN 0 \n\n", e)
             return 0
 

@@ -18,6 +18,10 @@ from metassl.hyperparameter_optimization.hierarchical_classes import (
     Sequential3Edge,
     Sequential4Edge,
     Sequential5Edge,
+    Sequential9Edge,
+    Sequential10Edge,
+    Sequential11Edge,
+    Sequential12Edge,
 )
 
 
@@ -76,6 +80,10 @@ def get_hierarchical_backbone(user_prior=None):  # ResNet18
         "Sequential3": Sequential3Edge,
         "Sequential4": Sequential4Edge,
         "Sequential5": Sequential5Edge,
+        "Sequential9": Sequential9Edge,
+        "Sequential10": Sequential10Edge,
+        "Sequential11": Sequential11Edge,
+        "Sequential12": Sequential12Edge,
         "ReLU": {"op": ReLU},  # pre-backbone
         "GELU": {"op": GELU},  # pre-backbone
         "BatchNorm2D": {"op": BatchNorm2D, "prev_dim": 64},  # pre-backbone
@@ -86,32 +94,16 @@ def get_hierarchical_backbone(user_prior=None):  # ResNet18
         },  # pre-backbone
     }
 
+
     structure = {
         "S": [
-            "Sequential5 start block-stride1 block2 block2 block2",  # baseline
-            "Sequential5 start block-stride1 block1 block4 block2",
-            "Sequential5 start block-stride1 block2 block4 block1",
-            # Not used for the moment (maybe later for rebuttal?)
-            # "Sequential4 block2 block2 block2 block2",
-            # "Sequential4 block-stride1 block-stride1 block4 block2",
-            # "Sequential4 block-stride1 block2 block4 block2",
-            # "Sequential4 block2 block2 block4 block2",
+            "Sequential9 start ResNetBB_stride1 ResNetBB_stride1 ResNetBB_stride2 ResNetBB_stride1 ResNetBB_stride2 ResNetBB_stride1 ResNetBB_stride2 ResNetBB_stride1",  # baseline 2 2 2 2
+            "Sequential12 start ResNetBB_stride1 ResNetBB_stride2 ResNetBB_stride1 ResNetBB_stride2 ResNetBB_stride1 ResNetBB_stride1 ResNetBB_stride1 ResNetBB_stride2 ResNetBB_stride1 ResNetBB_stride1 ResNetBB_stride1",  # 1 2 4 4
+            "Sequential10 start ResNetBB_stride1 ResNetBB_stride1 ResNetBB_stride2 ResNetBB_stride2 ResNetBB_stride1 ResNetBB_stride1 ResNetBB_stride1 ResNetBB_stride2 ResNetBB_stride1",  # 2 1 4 2  -> ConvNext like
         ],
         "start": ["Sequential norm activation"],  # pre-backbone
         "activation": ["ReLU", "GELU"],  # pre-backbone
-        "norm": ["BatchNorm2D", "LayerNorm2D"],  # pre-backbone  # TODO
-        "block-stride1": [
-            "Sequential ResNetBB_stride1 ResNetBB_stride1",
-        ],
-        "block1": [
-            "Sequential ResNetBB_stride1 Identity",
-        ],
-        "block2": [
-            "Sequential ResNetBB_stride2 ResNetBB_stride1",
-        ],
-        "block4": [
-            "Sequential4 ResNetBB_stride2 ResNetBB_stride1 ResNetBB_stride2 " "ResNetBB_stride1",
-        ],
+        "norm": ["BatchNorm2D", "LayerNorm2D"],  # pre-backbone
         "ResNetBB_stride1": [
             "ResNetBB_BN_GELU_1",
             "ResNetBB_BN_ReLU_1",  # baseline
@@ -127,12 +119,7 @@ def get_hierarchical_backbone(user_prior=None):  # ResNet18
     }
 
     prior_distr = {
-        # "S":                  [0.5, 0.25, 0.25],
-        "S": [0.5, 0.25, 0.25],
-        "block-stride1": [1.0],
-        "block1": [1.0],
-        "block2": [1.0],
-        "block4": [1.0],
+        "S": [0.3, 0.3, 0.4],
         "ResNetBB_stride1": [0.2, 0.2, 0.4, 0.2],
         "ResNetBB_stride2": [0.2, 0.2, 0.4, 0.2],
         "start": [1.0],  # pre-backbone
