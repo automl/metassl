@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH -p mlhiwidlc_gpu-rtx2080
-#SBATCH -q dlc-wagnerd
+#SBATCH -p alldlc_gpu-rtx2080
+##SBATCH -q dlc-wagnerd
 #SBATCH --gres=gpu:1
-#SBATCH -J MSSL_C10_SimSiam
-#SBATCH -t 20:00:00
-#SBATCH --array 0-499%10
+#SBATCH -J C10_Combined
+#SBATCH -t 23:59:59
+#SBATCH --array 0-199%10
 
-source activate neps
+source activate metassl
 
 python -m metassl.train_simsiam --config "metassl/default_metassl_config_cifar10.yaml" \
 				--use_fixed_args \
@@ -21,5 +21,6 @@ python -m metassl.train_simsiam --config "metassl/default_metassl_config_cifar10
 				--neps.is_neps_run \
 				--finetuning.valid_size 0.2 \
 				--expt.expt_name $EXPERIMENT_NAME \
-				--neps.config_space parameterized_cifar10_augmentation_with_solarize \
+				--neps.config_space combined \
+				--neps.optimize_backbone_only \
 				--neps.is_user_prior
