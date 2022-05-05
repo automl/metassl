@@ -76,7 +76,7 @@ class ConvNormActivation(AbstractPrimitive):
             nn.Conv2d(C_in, C_out, kernel_size, stride=stride, padding=pad, bias=False),
             norm,
             activation,
-        )
+            )
 
     def forward(self, x, edge_data=None):
         return self.op(x)
@@ -113,7 +113,7 @@ class ConvNorm(AbstractPrimitive):
         self.op = nn.Sequential(
             nn.Conv2d(C_in, C_out, kernel_size, stride=stride, padding=pad, bias=False),
             norm,
-        )
+            )
 
     def forward(self, x, edge_data=None):
         return self.op(x)
@@ -159,7 +159,7 @@ class ConvNorm(AbstractPrimitive):
 class ResNetBasicBlockStride1(AbstractPrimitive):
     def __init__(
         self, C_in, C_out, norm="LayerNorm", activation="GELU", stride=2, affine=True, **kwargs
-    ):  # pylint:disable=W0613
+        ):  # pylint:disable=W0613
         super().__init__(locals())
         assert stride == 1 or stride == 2, f"invalid stride {stride}"
         # if stride == 2:
@@ -184,7 +184,7 @@ class ResNetBasicBlockStride1(AbstractPrimitive):
                 # nn.AvgPool2d(kernel_size=2, stride=2, padding=0),
                 nn.Conv2d(C_in, C_out, kernel_size=1, stride=2, padding=0, bias=False),
                 norm,
-            )
+                )
         else:
             self.downsample = None
 
@@ -202,7 +202,7 @@ class ResNetBasicBlockStride1(AbstractPrimitive):
 class ResNetBasicBlockStride2(AbstractPrimitive):
     def __init__(
         self, C_in, C_out, norm="LayerNorm", activation="GELU", stride=2, affine=True, **kwargs
-    ):  # pylint:disable=W0613
+        ):  # pylint:disable=W0613
         super().__init__(locals())
         assert stride == 1 or stride == 2, f"invalid stride {stride}"
         # if stride == 2:
@@ -227,7 +227,7 @@ class ResNetBasicBlockStride2(AbstractPrimitive):
                 # nn.AvgPool2d(kernel_size=2, stride=2, padding=0),
                 nn.Conv2d(C_in, C_out, kernel_size=1, stride=2, padding=0, bias=False),
                 norm,
-            )
+                )
         else:
             self.downsample = None
 
@@ -348,7 +348,7 @@ class BatchNorm(AbstractPrimitive):
 
 
 class LayerNorm(AbstractPrimitive):
-    r"""LayerNorm that supports input from Conv2D, i.e. two data formats: channels_last (default)
+    r""" LayerNorm that supports input from Conv2D, i.e. two data formats: channels_last (default)
     or channels_first. The ordering of the dimensions in the inputs. channels_last corresponds to
      inputs with shape (batch_size, height, width, channels) while channels_first corresponds to
      inputs with shape (batch_size, channels, height, width).
@@ -389,7 +389,7 @@ class Sequential(AbstractTopology):
     edge_list = [
         (1, 2),
         (2, 3),
-    ]
+        ]
 
     def __init__(self, *edge_vals):
         super().__init__()
@@ -412,17 +412,6 @@ class Sequential3Edge(AbstractTopology):
 
 class Sequential4Edge(AbstractTopology):
     edge_list: list = [(1, 2), (2, 3), (3, 4), (4, 5)]
-
-    def __init__(self, *edge_vals):
-        super().__init__()
-        number_of_edges = 4
-        self.name = f"Sequential_{number_of_edges}_Edges"
-        self.create_graph(dict(zip(self.edge_list, edge_vals)))
-        self.set_scope(self.name)
-
-
-class Sequential5Edge(AbstractTopology):
-    edge_list: list = [(1, 2), (2, 3), (3, 4), (4, 5), (5, 6)]
 
     def __init__(self, *edge_vals):
         super().__init__()

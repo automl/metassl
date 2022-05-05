@@ -1,7 +1,6 @@
 import neps
 import numpy as np
 from neps.search_spaces.graph_grammar import topologies as topos
-from torch import nn
 
 from metassl.hyperparameter_optimization.hierarchical_classes import (
     GELU,
@@ -16,7 +15,6 @@ from metassl.hyperparameter_optimization.hierarchical_classes import (
     Sequential,
     Sequential3Edge,
     Sequential4Edge,
-    Sequential5Edge,
 )
 
 
@@ -71,20 +69,14 @@ def get_hierarchical_backbone(user_prior=None):  # ResNet18
             "activation": "ReLU",
             "stride": 2,
         },
-        "AdaptiveAvgPool2d": {"op": nn.AdaptiveAvgPool2d(1)},
-        "Flatten": {"op": nn.Flatten()},
-        # "LastLinear": {"op": nn.Linear(in_features=None, out_features=10)},  # out_features = num_classes (hardcoded for CIFAR10)  # TODO: Fix in_features  # noqa: E501
-        # "BatchNorm": {"op": BatchNorm, "prev_dim": None},  # TODO: Fix prev_dim
-        "LayerNorm": {"op": LayerNorm, "num_features": None},  # TODO Fix num_features
         "Sequential": Sequential,
         "Sequential3": Sequential3Edge,
         "Sequential4": Sequential4Edge,
-        "Sequential5": Sequential5Edge,
     }
 
     structure = {
         "S": [
-            "Sequential5 block-stride1 block2 block2 block2 end",  # baseline
+            "Sequential4 block-stride1 block2 block2 block2",  # baseline
             "Sequential4 block-stride1 block1 block4 block2",
             "Sequential4 block-stride1 block2 block4 block1",
             # Not used for the moment (maybe later for rebuttal?)
@@ -103,10 +95,7 @@ def get_hierarchical_backbone(user_prior=None):  # ResNet18
             "Sequential ResNetBB_stride2 ResNetBB_stride1",
         ],
         "block4": [
-            "Sequential4 ResNetBB_stride2 ResNetBB_stride1 ResNetBB_stride2 ResNetBB_stride1",
-        ],
-        "end": [
-            "Sequential4 AdaptiveAvgPool2d Flatten Identity Identity",  # TODO: Add this instead after bug is fixed: "Sequential4 AdaptiveAvgPool2d Flatten Norm LastLinear",  # noqa: E501
+            "Sequential4 ResNetBB_stride2 ResNetBB_stride1 ResNetBB_stride2 " "ResNetBB_stride1",
         ],
         "ResNetBB_stride1": [
             "ResNetBB_BN_GELU_1",
@@ -120,11 +109,6 @@ def get_hierarchical_backbone(user_prior=None):  # ResNet18
             "ResNetBB_LN_GELU_2",
             "ResNetBB_LN_ReLU_2",
         ],
-        "Norm": [
-            # "LayerNorm",  # TODO: Add (after bug is fixed)
-            # "BatchNorm",  # TODO: Add (after bug is fixed)
-            "Identity"
-        ],
     }
 
     prior_distr = {
@@ -136,17 +120,13 @@ def get_hierarchical_backbone(user_prior=None):  # ResNet18
         "block4": [1.0],
         "ResNetBB_stride1": [0.2, 0.2, 0.4, 0.2],
         "ResNetBB_stride2": [0.2, 0.2, 0.4, 0.2],
-        "end": [1],
-        "Norm": [1.0],  # TODO: Update to [0.5, 0.25, 0.25], after bug is fixed
     }
 
     assert all(
         np.isclose(sum(v), 1.0) for v in prior_distr.values()
     ), "propabilities should sum to 1"
 
-    def set_recursive_attribute(
-        op_name, predecessor_values
-    ):  # TODO maybe solve problem with this function?
+    def set_recursive_attribute(op_name, predecessor_values):
         in_channels = 64 if predecessor_values is None else predecessor_values["C_out"]
         out_channels = in_channels * 2 if op_name == "ResNetBasicBlockStride2" else in_channels
         return dict(C_in=in_channels, C_out=out_channels)
@@ -289,6 +269,7 @@ def get_hierarchical_predictor(prev_dim, user_prior=None):
     # (3): Linear(in_features=512, out_features=2048, bias=True)   > FIX
     # )
 
+    # TODO: @Diane please double check
     prior_distr = {
         "S": [1.0],
         "finish-block": [0.4, 0.2, 0.2, 0.2],  # baseline is weighted with 0.4

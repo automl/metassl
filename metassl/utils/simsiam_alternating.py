@@ -31,21 +31,18 @@ class SimSiam(nn.Module):
             base_channels = 64
             out_channels = pred_dim
             self.backbone = nn.Sequential(
-                nn.Sequential(  # TODO: Add to configspace!
+                nn.Sequential(  # TODO: Add to configspace?
                     nn.Conv2d(in_channels, base_channels, kernel_size=3, padding=1, bias=False),
                     nn.BatchNorm2d(base_channels),
                     nn.ReLU(inplace=True),
                 ),
                 hierarchical_backbone,
-                nn.AdaptiveAvgPool2d(1),  # TODO: delete as integrated in hierarchical backbone
-                nn.Flatten(),  # TODO: delete as integrated in hierarchical backbone
-                # self.norm = nn.LayerNorm(dims[-1], eps=1e-6)  # final norm layer  # TODO: delete as integrated in hierarchical backbone  # noqa: E501
-                nn.Linear(
-                    out_channels, num_classes
-                ),  # TODO: delete as integrated in hierarchical backbone
+                nn.AdaptiveAvgPool2d(1),
+                nn.Flatten(),
+                nn.Linear(out_channels, num_classes),
             )
-            prev_dim = self.backbone[-1].weight.shape[1]
-            self.backbone[-1] = torch.nn.Identity()
+            prev_dim = self.backbone[-1].weight.shape[1]  # TODO: @Fabio please double check
+            self.backbone[-1] = torch.nn.Identity()  # # TODO: @Fabio please double check
 
         print("Backbone:\n", self.backbone)
 
