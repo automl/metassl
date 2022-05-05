@@ -139,7 +139,7 @@ def get_neps_pipeline_space(config):
         return pipeline_space
     # ----------------------------------------------------------------------------------------------
     # TODO: optimize backbone-only or backbone + projector + predictor?
-    elif config_space == "combined":
+    elif config_space == "combined" and config.neps.optimize_backbone_only:
         if user_prior:
             pipeline_space = dict(
                 # DATA AUGMENTATION
@@ -183,12 +183,6 @@ def get_neps_pipeline_space(config):
                 ),
                 # HIERARCHICAL NAS
                 hierarchical_backbone=get_hierarchical_backbone(user_prior=user_prior),
-                hierarchical_projector=get_hierarchical_projector(
-                    prev_dim=512, user_prior=user_prior
-                ),  # TODO: Remove or keep?
-                hierarchical_predictor=get_hierarchical_predictor(
-                    prev_dim=512, user_prior=user_prior
-                ),  # TODO: Remove or keep?
                 # TRAINING
                 pt_learning_rate=neps.FloatParameter(
                     lower=0.003, upper=0.3, log=True, default=0.03, default_confidence="medium"
@@ -233,12 +227,6 @@ def get_neps_pipeline_space(config):
                 solarize_threshold=neps.IntegerParameter(lower=0, upper=255, log=False),
                 # HIERARCHICAL NAS
                 hierarchical_backbone=get_hierarchical_backbone(),
-                hierarchical_projector=get_hierarchical_projector(
-                    prev_dim=512
-                ),  # TODO: Remove or keep?
-                hierarchical_predictor=get_hierarchical_predictor(
-                    prev_dim=512
-                ),  # TODO: Remove or keep?
                 # TRAINING
                 pt_learning_rate=neps.FloatParameter(lower=0.003, upper=0.3, log=True),
                 warmup_epochs=neps.IntegerParameter(lower=0, upper=80, log=False),
@@ -250,4 +238,6 @@ def get_neps_pipeline_space(config):
         return pipeline_space
     # ----------------------------------------------------------------------------------------------
     else:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Config space 'combined' needs to be implemented for the 'not backbone-only' case"
+        )
