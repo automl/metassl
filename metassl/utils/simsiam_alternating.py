@@ -31,18 +31,14 @@ class SimSiam(nn.Module):
             base_channels = 64
             out_channels = pred_dim
             self.backbone = nn.Sequential(
-                nn.Sequential(  # TODO: Add to configspace?
-                    nn.Conv2d(in_channels, base_channels, kernel_size=3, padding=1, bias=False),
-                    nn.BatchNorm2d(base_channels),
-                    nn.ReLU(inplace=True),
-                ),
+                nn.Conv2d(in_channels, base_channels, kernel_size=3, padding=1, bias=False),
                 hierarchical_backbone,
                 nn.AdaptiveAvgPool2d(1),
                 nn.Flatten(),
                 nn.Linear(out_channels, num_classes),
             )
-            prev_dim = self.backbone[-1].weight.shape[1]  # TODO: @Fabio please double check
-            self.backbone[-1] = torch.nn.Identity()  # # TODO: @Fabio please double check
+            prev_dim = self.backbone[-1].weight.shape[1]
+            self.backbone = torch.nn.Sequential(*(list(self.backbone.children())[:-1]))
 
         print("Backbone:\n", self.backbone)
 

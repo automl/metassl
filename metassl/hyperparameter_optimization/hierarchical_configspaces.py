@@ -5,9 +5,11 @@ from neps.search_spaces.graph_grammar import topologies as topos
 from metassl.hyperparameter_optimization.hierarchical_classes import (
     GELU,
     BatchNorm,
+    BatchNorm2D,
     FullyConnected,
     Identity,
     LayerNorm,
+    LayerNorm2D,
     LeakyReLU,
     ReLU,
     ResNetBasicBlockStride1,
@@ -15,6 +17,7 @@ from metassl.hyperparameter_optimization.hierarchical_classes import (
     Sequential,
     Sequential3Edge,
     Sequential4Edge,
+    Sequential5Edge,
 )
 
 
@@ -72,19 +75,31 @@ def get_hierarchical_backbone(user_prior=None):  # ResNet18
         "Sequential": Sequential,
         "Sequential3": Sequential3Edge,
         "Sequential4": Sequential4Edge,
+        "Sequential5": Sequential5Edge,
+        "ReLU": {"op": ReLU},  # pre-backbone
+        "GELU": {"op": GELU},  # pre-backbone
+        "BatchNorm2D": {"op": BatchNorm2D, "prev_dim": 64},  # pre-backbone
+        "LayerNorm2D": {
+            "op": LayerNorm2D,
+            "num_features": 64,
+            "data_format": "channels_first",
+        },  # pre-backbone
     }
 
     structure = {
         "S": [
-            "Sequential4 block-stride1 block2 block2 block2",  # baseline
-            "Sequential4 block-stride1 block1 block4 block2",
-            "Sequential4 block-stride1 block2 block4 block1",
+            "Sequential5 start block-stride1 block2 block2 block2",  # baseline
+            "Sequential5 start block-stride1 block1 block4 block2",
+            "Sequential5 start block-stride1 block2 block4 block1",
             # Not used for the moment (maybe later for rebuttal?)
             # "Sequential4 block2 block2 block2 block2",
             # "Sequential4 block-stride1 block-stride1 block4 block2",
             # "Sequential4 block-stride1 block2 block4 block2",
             # "Sequential4 block2 block2 block4 block2",
         ],
+        "start": ["Sequential norm activation"],  # pre-backbone
+        "activation": ["ReLU", "GELU"],  # pre-backbone
+        "norm": ["BatchNorm2D", "LayerNorm2D"],  # pre-backbone  # TODO
         "block-stride1": [
             "Sequential ResNetBB_stride1 ResNetBB_stride1",
         ],
@@ -120,6 +135,9 @@ def get_hierarchical_backbone(user_prior=None):  # ResNet18
         "block4": [1.0],
         "ResNetBB_stride1": [0.2, 0.2, 0.4, 0.2],
         "ResNetBB_stride2": [0.2, 0.2, 0.4, 0.2],
+        "start": [1.0],  # pre-backbone
+        "activation": [0.25, 0.75],  # pre-backbone
+        "norm": [0.25, 0.75],  # pre-backbone
     }
 
     assert all(
@@ -151,7 +169,7 @@ def get_hierarchical_projector(prev_dim, user_prior=None):  # encoder head
         "LeakyReLU": {"op": LeakyReLU},
         "GELU": {"op": GELU},
         "BatchNorm": {"op": BatchNorm, "prev_dim": prev_dim},
-        "LayerNorm": {"op": LayerNorm, "num_features": prev_dim},
+        "LayerNorm": {"op": LayerNorm, "prev_dim": prev_dim},
         "residual": topos.Residual,
         "diamond": topos.Diamond,
         "linear": topos.Linear,
@@ -225,7 +243,7 @@ def get_hierarchical_predictor(prev_dim, user_prior=None):
         "LeakyReLU": {"op": LeakyReLU},
         "GELU": {"op": GELU},
         "BatchNorm": {"op": BatchNorm, "prev_dim": prev_dim},
-        "LayerNorm": {"op": LayerNorm, "num_features": prev_dim},
+        "LayerNorm": {"op": LayerNorm, "prev_dim": prev_dim},
         "residual": topos.Residual,
         "diamond": topos.Diamond,
         "linear": topos.Linear,
