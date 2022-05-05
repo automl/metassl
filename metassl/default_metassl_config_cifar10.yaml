@@ -30,7 +30,7 @@ expt:
   wd_decay_ft:                  False                         # use weight decay decay (annealing) during fine-tuning? (default: True)
   run_knn_val:                  False                         # activate knn evaluation during training (default: False)
   alternating_finetune_frequency: 1                         # determines how many number of steps should be skipped before the next finetuning and aug optimizer step is invoked
-
+  is_testing_mode:              False                         # Set this flag to enter the test mode to test the code quickly (default: False)
 #######################################
 ###     Training Configuration      ###
 #######################################
