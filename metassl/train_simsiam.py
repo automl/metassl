@@ -289,8 +289,13 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
         model.encoder_head[6].bias.requires_grad = True
 
     # infer learning rate !before changing batch size! > see lines below
-    divisor = 256 if config.data.dataset == "ImageNet" else config.train.batch_size
-    init_lr_pt = config.train.lr * config.train.batch_size / divisor
+    if config.data.dataset == "ImageNet":
+        # TODO: @Fabio please check
+        divisor = 256 if config.data.dataset == "ImageNet" else config.train.batch_size
+        init_lr_pt = config.train.lr * config.train.batch_size / divisor
+    else:
+        # For CIFAR10: config.train.batch_size = 512
+        init_lr_pt = config.train.lr * config.train.batch_size / 256
 
     if config.expt.distributed:
         # Apply SyncBN TODO: @Fabio - keep for CIFAR10? (metassl code)
