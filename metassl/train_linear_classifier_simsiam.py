@@ -359,7 +359,9 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, hyperparamete
             train_sampler_ft,
             valid_loader_ft,
             test_loader_ft,
-        ) = get_loaders(config, parameterize_augmentation=False, bohb_infos=bohb_infos)
+        ) = get_loaders(
+            config, parameterize_augmentation=False, bohb_infos=bohb_infos, mode="finetuning"
+        )
     else:
         (
             train_loader_pt,
@@ -367,7 +369,9 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, hyperparamete
             train_loader_ft,
             train_sampler_ft,
             test_loader_ft,
-        ) = get_loaders(config, parameterize_augmentation=False, bohb_infos=bohb_infos)
+        ) = get_loaders(
+            config, parameterize_augmentation=False, bohb_infos=bohb_infos, mode="finetuning"
+        )
 
     cudnn.benchmark = True
     writer = None

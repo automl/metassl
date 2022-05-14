@@ -6,6 +6,7 @@ import torchvision.transforms as transforms
 from PIL import Image
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data.sampler import SubsetRandomSampler
+from torchvision.transforms import InterpolationMode
 
 from metassl.utils.imagenet import ImageNet
 
@@ -85,7 +86,7 @@ def get_train_valid_loader(
     else:
         print(f"using pretraining dataset: {dataset}")
 
-    if data_augmentation_mode == "default":
+    if get_fine_tuning_loaders or data_augmentation_mode == "default":
         # default SimSiam Stuff + Fabio Stuff
         # TODO @Fabio/Diane - generate specific mode for Fabio stuff
         train_transform, valid_transform = get_train_valid_transforms(
@@ -100,12 +101,21 @@ def get_train_valid_loader(
     elif data_augmentation_mode == "probability_augment":
         from .probability_augment import probability_augment
 
-        train_transform, valid_transform = probability_augment(
+        train_transform = probability_augment(
+            config,
             dataset_name,
-            get_fine_tuning_loaders,
-            bohb_infos,
             use_fix_aug_params,
-            finetuning_data_augmentation,
+            neps_hyperparameters,
+        )
+        valid_transform = TwoCropsTransform(
+            transforms.Compose(
+                [
+                    transforms.Resize(int(32 * (8 / 7)), interpolation=InterpolationMode.BICUBIC),
+                    transforms.CenterCrop(32),
+                    transforms.ToTensor(),
+                    normalize_cifar10 if dataset_name == "CIFAR10" else normalize_cifar100,
+                ]
+            )
         )
     else:
         raise ValueError(f"Data augmentation mode {data_augmentation_mode} is not implemented yet!")
@@ -132,34 +142,16 @@ def get_train_valid_loader(
     elif dataset_name == "CIFAR10":
         # train_dataset
         # ------------------------------------------------------------------------------------------
-        if data_augmentation_mode == "probability_augment":
+        if data_augmentation_mode == "probability_augment" and not get_fine_tuning_loaders:
             from .albumentation_datasets import Cifar10AlbumentationsPT
 
-            if not get_fine_tuning_loaders:
-                train_dataset = Cifar10AlbumentationsPT(
-                    root="datasets/CIFAR10",
-                    train=True,
-                    download=True,
-                    transform=train_transform,
-                )
-            else:
-                if finetuning_data_augmentation != "none":
-                    from .albumentation_datasets import Cifar10AlbumentationsFT
+            train_dataset = Cifar10AlbumentationsPT(
+                root="datasets/CIFAR10",
+                train=True,
+                download=True,
+                transform=train_transform,
+            )
 
-                    train_dataset = Cifar10AlbumentationsFT(
-                        root="datasets/CIFAR10",
-                        train=True,
-                        download=True,
-                        transform=train_transform,
-                    )
-                # TODO: @Diane - Refactor
-                else:
-                    train_dataset = torchvision.datasets.CIFAR10(
-                        root="datasets/CIFAR10",
-                        train=True,
-                        download=True,
-                        transform=train_transform,
-                    )
         else:
             train_dataset = torchvision.datasets.CIFAR10(
                 root="datasets/CIFAR10",
@@ -611,60 +603,126 @@ def get_loaders(
     bohb_infos=None,
     download=False,
     neps_hyperparameters=None,
+    mode="alternating",
 ):
-    train_loader_pt, _, train_sampler_pt, _ = get_train_valid_loader(
-        config=config,
-        neps_hyperparameters=neps_hyperparameters,
-        batch_size=config.train.batch_size,
-        random_seed=config.expt.seed,
-        valid_size=config.finetuning.valid_size,
-        dataset_name=config.data.dataset,
-        shuffle=True,
-        num_workers=config.expt.workers,
-        pin_memory=True,
-        download=download,
-        distributed=config.expt.distributed,
-        drop_last=True,
-        get_fine_tuning_loaders=False,
-        parameterize_augmentation=parameterize_augmentation,
-        bohb_infos=bohb_infos,
-        dataset_percentage_usage=config.data.dataset_percentage_usage,
-        use_fix_aug_params=config.expt.use_fix_aug_params,
-        data_augmentation_mode=config.expt.data_augmentation_mode,
-        finetuning_data_augmentation=config.finetuning.data_augmentation,
-    )
+    if mode == "pretraining":
+        train_loader_pt, _, train_sampler_pt, _ = get_train_valid_loader(
+            config=config,
+            neps_hyperparameters=neps_hyperparameters,
+            batch_size=config.train.batch_size,
+            random_seed=config.expt.seed,
+            valid_size=config.finetuning.valid_size,
+            dataset_name=config.data.dataset,
+            shuffle=True,
+            num_workers=config.expt.workers,
+            pin_memory=True,
+            download=download,
+            distributed=config.expt.distributed,
+            drop_last=True,
+            get_fine_tuning_loaders=False,
+            parameterize_augmentation=parameterize_augmentation,
+            bohb_infos=bohb_infos,
+            dataset_percentage_usage=config.data.dataset_percentage_usage,
+            use_fix_aug_params=config.expt.use_fix_aug_params,
+            data_augmentation_mode=config.expt.data_augmentation_mode,
+            finetuning_data_augmentation=config.finetuning.data_augmentation,
+        )
+        train_loader_ft = None
+        train_sampler_ft = None
+        valid_loader_ft = None
+        test_loader_ft = None
 
-    train_loader_ft, valid_loader_ft, train_sampler_ft, _ = get_train_valid_loader(
-        config=config,
-        neps_hyperparameters=neps_hyperparameters,
-        batch_size=config.finetuning.batch_size,
-        random_seed=config.expt.seed,
-        valid_size=config.finetuning.valid_size,
-        dataset_name=config.data.dataset,
-        shuffle=True,
-        num_workers=config.expt.workers,
-        pin_memory=True,
-        download=download,
-        distributed=config.expt.distributed,
-        drop_last=True,
-        get_fine_tuning_loaders=True,
-        parameterize_augmentation=False,  # we never parameterize augmentations in the FT case
-        bohb_infos=bohb_infos,
-        dataset_percentage_usage=config.data.dataset_percentage_usage,
-        use_fix_aug_params=config.expt.use_fix_aug_params,
-        data_augmentation_mode=config.expt.data_augmentation_mode,
-        finetuning_data_augmentation=config.finetuning.data_augmentation,
-    )
+    elif mode == "finetuning":
+        train_loader_pt = None
+        train_sampler_pt = None
+        train_loader_ft, valid_loader_ft, train_sampler_ft, _ = get_train_valid_loader(
+            config=config,
+            neps_hyperparameters=neps_hyperparameters,
+            batch_size=config.finetuning.batch_size,
+            random_seed=config.expt.seed,
+            valid_size=config.finetuning.valid_size,
+            dataset_name=config.data.dataset,
+            shuffle=True,
+            num_workers=config.expt.workers,
+            pin_memory=True,
+            download=download,
+            distributed=config.expt.distributed,
+            drop_last=True,
+            get_fine_tuning_loaders=True,
+            parameterize_augmentation=False,  # we never parameterize augmentations in the FT case
+            bohb_infos=bohb_infos,
+            dataset_percentage_usage=config.data.dataset_percentage_usage,
+            use_fix_aug_params=config.expt.use_fix_aug_params,
+            data_augmentation_mode=config.expt.data_augmentation_mode,
+            finetuning_data_augmentation=config.finetuning.data_augmentation,
+        )
 
-    test_loader_ft = get_test_loader(
-        batch_size=config.finetuning.batch_size,
-        dataset_name=config.data.dataset,
-        shuffle=False,
-        num_workers=config.expt.workers,
-        pin_memory=True,
-        download=download,
-        drop_last=False,
-    )
+        test_loader_ft = get_test_loader(
+            batch_size=config.finetuning.batch_size,
+            dataset_name=config.data.dataset,
+            shuffle=False,
+            num_workers=config.expt.workers,
+            pin_memory=True,
+            download=download,
+            drop_last=False,
+        )
+    elif mode == "alternating":
+        train_loader_pt, _, train_sampler_pt, _ = get_train_valid_loader(
+            config=config,
+            neps_hyperparameters=neps_hyperparameters,
+            batch_size=config.train.batch_size,
+            random_seed=config.expt.seed,
+            valid_size=config.finetuning.valid_size,
+            dataset_name=config.data.dataset,
+            shuffle=True,
+            num_workers=config.expt.workers,
+            pin_memory=True,
+            download=download,
+            distributed=config.expt.distributed,
+            drop_last=True,
+            get_fine_tuning_loaders=False,
+            parameterize_augmentation=parameterize_augmentation,
+            bohb_infos=bohb_infos,
+            dataset_percentage_usage=config.data.dataset_percentage_usage,
+            use_fix_aug_params=config.expt.use_fix_aug_params,
+            data_augmentation_mode=config.expt.data_augmentation_mode,
+            finetuning_data_augmentation=config.finetuning.data_augmentation,
+        )
+
+        train_loader_ft, valid_loader_ft, train_sampler_ft, _ = get_train_valid_loader(
+            config=config,
+            neps_hyperparameters=neps_hyperparameters,
+            batch_size=config.finetuning.batch_size,
+            random_seed=config.expt.seed,
+            valid_size=config.finetuning.valid_size,
+            dataset_name=config.data.dataset,
+            shuffle=True,
+            num_workers=config.expt.workers,
+            pin_memory=True,
+            download=download,
+            distributed=config.expt.distributed,
+            drop_last=True,
+            get_fine_tuning_loaders=True,
+            parameterize_augmentation=False,  # we never parameterize augmentations in the FT case
+            bohb_infos=bohb_infos,
+            dataset_percentage_usage=config.data.dataset_percentage_usage,
+            use_fix_aug_params=config.expt.use_fix_aug_params,
+            data_augmentation_mode=config.expt.data_augmentation_mode,
+            finetuning_data_augmentation=config.finetuning.data_augmentation,
+        )
+
+        test_loader_ft = get_test_loader(
+            batch_size=config.finetuning.batch_size,
+            dataset_name=config.data.dataset,
+            shuffle=False,
+            num_workers=config.expt.workers,
+            pin_memory=True,
+            download=download,
+            drop_last=False,
+        )
+
+    else:
+        raise NotImplementedError("Not implemented data loader mode!")
 
     if config.finetuning.valid_size > 0:
         return (

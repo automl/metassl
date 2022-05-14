@@ -451,6 +451,7 @@ def get_parsed_config():
             "hierarchical_nas",
             "training",
             "combined",
+            "probability_augment",
         ],
         help="Define which configspace to use.",
     )

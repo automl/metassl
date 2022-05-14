@@ -179,7 +179,6 @@ def main(working_directory, config, bohb_infos=None, **hyperparameters):
             args=(ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperparameters),
         )
     else:
-        # Simply call main_worker function
         try:
             main_worker(
                 config.expt.gpu,
@@ -453,6 +452,7 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
             parameterize_augmentation=False,
             bohb_infos=bohb_infos,
             neps_hyperparameters=neps_hyperparameters,
+            mode="pretraining",
         )
     else:  # TODO: @Diane - Checkout and test on *parameterized_aug*
         (
@@ -466,6 +466,7 @@ def main_worker(gpu, ngpus_per_node, config, expt_dir, bohb_infos, neps_hyperpar
             parameterize_augmentation=False,
             bohb_infos=bohb_infos,
             neps_hyperparameters=neps_hyperparameters,
+            mode="pretraining",
         )
 
     cudnn.benchmark = True
@@ -647,6 +648,12 @@ def train_one_epoch(
     end = time.time()
 
     for i, (images_pt, _) in enumerate(train_loader_pt):
+
+        # For debugging images in tensorboard
+        # image_1 = images_pt[0]
+        # image_2 = images_pt[1]
+        # writer.add_images('Train/Image1', image_1, epoch)
+        # writer.add_images('Train/Image2', image_2, epoch)
 
         total_iter += 1
 

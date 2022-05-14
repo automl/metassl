@@ -68,6 +68,75 @@ def get_neps_pipeline_space(config):
             )
         return pipeline_space
     # ----------------------------------------------------------------------------------------------
+    elif config_space == "probability_augment":
+        if user_prior:
+            pipeline_space = dict(
+                # Probabilities
+                p_color_transformations=neps.FloatParameter(
+                    lower=0, upper=1, log=False, default=0.5, default_confidence="medium"
+                ),
+                p_geometric_transformations=neps.FloatParameter(
+                    lower=0, upper=1, log=False, default=0.5, default_confidence="medium"
+                ),
+                p_non_rigid_transformations=neps.FloatParameter(
+                    lower=0, upper=1, log=False, default=0, default_confidence="medium"
+                ),
+                p_quality_transformations=neps.FloatParameter(
+                    lower=0, upper=1, log=False, default=0, default_confidence="medium"
+                ),
+                p_exotic_transformations=neps.FloatParameter(
+                    lower=0, upper=1, log=False, default=0, default_confidence="medium"
+                ),
+                # Number of transformations per group
+                n_color_transformations=neps.IntegerParameter(
+                    lower=1, upper=5, log=False, default=1, default_confidence="medium"
+                ),
+                n_geometric_transformations=neps.IntegerParameter(
+                    lower=1, upper=2, log=False, default=1, default_confidence="medium"
+                ),
+                n_non_rigid_transformations=neps.IntegerParameter(
+                    lower=1, upper=3, log=False, default=1, default_confidence="medium"
+                ),
+                n_quality_transformations=neps.IntegerParameter(
+                    lower=1, upper=2, log=False, default=1, default_confidence="medium"
+                ),
+                n_exotic_transformations=neps.IntegerParameter(
+                    lower=1, upper=2, log=False, default=1, default_confidence="medium"
+                ),
+                n_total=neps.IntegerParameter(
+                    lower=1, upper=5, log=False, default=1, default_confidence="medium"
+                ),
+            )
+        else:
+            pipeline_space = dict(
+                # Probabilities
+                p_color_transformations=neps.FloatParameter(lower=0, upper=1, log=False),
+                p_geometric_transformations=neps.FloatParameter(lower=0, upper=1, log=False),
+                p_non_rigid_transformations=neps.FloatParameter(lower=0, upper=1, log=False),
+                p_quality_transformations=neps.FloatParameter(
+                    lower=0,
+                    upper=1,
+                    log=False,
+                ),
+                p_exotic_transformations=neps.FloatParameter(
+                    lower=0,
+                    upper=1,
+                    log=False,
+                ),
+                # Number of transformations per group
+                n_color_transformations=neps.IntegerParameter(lower=1, upper=5, log=False),
+                n_geometric_transformations=neps.IntegerParameter(lower=1, upper=2, log=False),
+                n_non_rigid_transformations=neps.IntegerParameter(lower=1, upper=3, log=False),
+                n_quality_transformations=neps.IntegerParameter(
+                    lower=1,
+                    upper=2,
+                    log=False,
+                ),
+                n_exotic_transformations=neps.IntegerParameter(lower=1, upper=2, log=False),
+                n_total=neps.IntegerParameter(lower=1, upper=5, log=False),
+            )
+        return pipeline_space
+    # ----------------------------------------------------------------------------------------------
     elif config_space == "hierarchical_nas":
         if config.neps.optimize_backbone_only:
             if user_prior:
