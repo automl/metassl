@@ -110,9 +110,7 @@ def ShearX(data, v, is_segmentation):  # [-0.3, 0.3]
         )
         return image, mask
     else:
-        return data.transform(
-            data[0].size, PIL.Image.AFFINE, (1, v, 0, 0, 1, 0), PIL.Image.BILINEAR
-        )
+        return data.transform(data.size, PIL.Image.AFFINE, (1, v, 0, 0, 1, 0), PIL.Image.BILINEAR)
 
 
 def ShearY(data, v, is_segmentation):  # [-0.3, 0.3]
@@ -179,6 +177,29 @@ def Rotate(data, v, is_segmentation):  # [-30, 30]
         return data.rotate(v)
 
 
+def RandomResizeCrop(data, v, is_segmentation):
+    if is_segmentation:
+        raise NotImplementedError
+
+    # Get data size (32x32 for CIFAR10)
+    data_width = data.size[0]
+    data_height = data.size[1]
+
+    # Resize data (if v is between 0.2 and 1.0: -> 'zoom in')
+    data = data.resize((int(data_width + data_width * v), int(data_height + data_height * v)))
+    data_resized_width = data.size[0]
+    data_resized_height = data.size[1]
+
+    # Crop to get original data size back (32x32 for CIFAR10)
+    left = random.randrange(0, data_resized_width - data_width)
+    top = random.randrange(0, data_resized_height - data_height)
+    right = left + data_width
+    bottom = top + data_height
+    data = data.crop((left, top, right, bottom))
+
+    return data
+
+
 ####################################################################################################
 
 
@@ -204,17 +225,36 @@ def augment_list():  # default opterations used in RandAugment paper
     return augment_list
 
 
-class RandAugmentDefaultOps:
-    def __init__(self, num_ops, magnitude, is_segmentation=False):
-        self.num_ops = num_ops  # TODO: optimize with BOHB
-        self.magnitude = magnitude  # TODO: optimize with BOHB
+class RandAugment:
+    def __init__(self, neps_hyperparameters=None, is_segmentation=False):
+        self.num_ops = neps_hyperparameters["num_ops"] if neps_hyperparameters is not None else 3
+        self.magnitude = (
+            neps_hyperparameters["magnitude"] if neps_hyperparameters is not None else 15
+        )
         self.augment_list = augment_list()
         self.is_segmentation = is_segmentation
 
     def __call__(self, data):
+        basic_op = [(RandomResizeCrop, 0.2, 1.0)]  # Important for SimSiam
         ops = random.choices(self.augment_list, k=self.num_ops)
+        ops = basic_op + ops
         for op, minval, maxval in ops:
             magnitude_val = (float(self.magnitude) / 30) * float(maxval - minval) + minval
             data = op(data, magnitude_val, self.is_segmentation)
+        return data
 
+
+class TrivialAugment:
+    def __init__(self, is_segmentation=False):
+        self.augment_list = augment_list()
+        self.is_segmentation = is_segmentation
+
+    def __call__(self, data):
+        basic_op = [(RandomResizeCrop, 0.2, 1.0)]  # Important for SimSiam
+        ops = random.choices(self.augment_list, k=1)
+        ops = basic_op + ops
+        magnitude = random.randint(0, 30)
+        for op, minval, maxval in ops:
+            magnitude_val = (float(magnitude) / 30) * float(maxval - minval) + minval
+            data = op(data, magnitude_val, self.is_segmentation)
         return data

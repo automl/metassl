@@ -98,15 +98,20 @@ def get_train_valid_loader(
             parameterize_augmentation,
             neps_hyperparameters,
         )
-    elif data_augmentation_mode == "probability_augment":
+    else:
         from .probability_augment import probability_augment
 
-        train_transform = probability_augment(
-            config,
-            dataset_name,
-            use_fix_aug_params,
-            neps_hyperparameters,
-        )
+        if data_augmentation_mode == "probability_augment":
+            train_transform = probability_augment(
+                config,
+                dataset_name,
+                use_fix_aug_params,
+                neps_hyperparameters,
+            )
+        else:
+            # For TrivialAugment, RandAugment, SmartAugment, and SmartSamplingAugment
+            train_transform = None  # Done in Cifar10AugmentationPT
+
         valid_transform = TwoCropsTransform(
             transforms.Compose(
                 [
@@ -117,8 +122,6 @@ def get_train_valid_loader(
                 ]
             )
         )
-    else:
-        raise ValueError(f"Data augmentation mode {data_augmentation_mode} is not implemented yet!")
 
     if dataset_name == "ImageNet":
         # hardcoded for now
@@ -150,6 +153,18 @@ def get_train_valid_loader(
                 train=True,
                 download=True,
                 transform=train_transform,
+            )
+
+        elif data_augmentation_mode != "default" and not get_fine_tuning_loaders:
+            from .albumentation_datasets import Cifar10AugmentationPT
+
+            train_dataset = Cifar10AugmentationPT(
+                root="datasets/CIFAR10",
+                train=True,
+                download=True,
+                transform=train_transform,
+                data_augmentation_mode=data_augmentation_mode,
+                neps_hyperparameters=neps_hyperparameters,
             )
 
         else:

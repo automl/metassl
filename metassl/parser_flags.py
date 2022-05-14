@@ -156,7 +156,14 @@ def get_parsed_config():
     parser.add_argument(
         "--expt.data_augmentation_mode",
         default="default",
-        choices=["default", "probability_augment", "rand_augment"],
+        choices=[
+            "default",
+            "probability_augment",
+            "rand_augment",
+            "trivial_augment",
+            "smart_augment",
+            "smartsampling_augment",
+        ],
         help="Select which data augmentation to use. Default is for the standard SimSiam setting "
         "and for parameterize aug setting.",
     )
@@ -452,6 +459,8 @@ def get_parsed_config():
             "training",
             "combined",
             "probability_augment",
+            "rand_augment",
+            "smart_augment",
         ],
         help="Define which configspace to use.",
     )

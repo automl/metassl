@@ -655,6 +655,17 @@ def train_one_epoch(
         # writer.add_images('Train/Image1', image_1, epoch)
         # writer.add_images('Train/Image2', image_2, epoch)
 
+        if (
+            config.expt.data_augmentation_mode == "trivial_augment"
+            or config.expt.data_augmentation_mode == "smartsampling_augment"
+            or config.expt.data_augmentation_mode == "rand_augment"
+        ):
+            # To prevent the following error:
+            # RuntimeError: Input type (torch.cuda.DoubleTensor) and weight type
+            # (torch.cuda.FloatTensor) should be the same
+            images_pt[0] = images_pt[0].float()
+            images_pt[1] = images_pt[1].float()
+
         total_iter += 1
 
         if config.expt.gpu is not None:

@@ -137,6 +137,23 @@ def get_neps_pipeline_space(config):
             )
         return pipeline_space
     # ----------------------------------------------------------------------------------------------
+    elif config_space == "rand_augment":
+        if user_prior:
+            pipeline_space = dict(
+                num_ops=neps.IntegerParameter(
+                    lower=1, upper=15, log=False, default=3, default_confidence="medium"
+                ),
+                magnitude=neps.IntegerParameter(
+                    lower=0, upper=30, log=False, default=15, default_confidence="medium"
+                ),
+            )
+        else:
+            pipeline_space = dict(
+                num_ops=neps.IntegerParameter(lower=1, upper=15, log=False),
+                magnitude=neps.IntegerParameter(lower=0, upper=30, log=False),
+            )
+        return pipeline_space
+    # ----------------------------------------------------------------------------------------------
     elif config_space == "hierarchical_nas":
         if config.neps.optimize_backbone_only:
             if user_prior:
