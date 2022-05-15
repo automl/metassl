@@ -18,6 +18,9 @@ experiments/*/*
 # PyCharm
 .idea/
 
+#PDF
+*.pdf
+
 # Distribution / packaging
 .Python
 build/

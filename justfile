@@ -10,6 +10,14 @@ format:
 delete_test_runs:
   bash utils_scripts/clean_test_experiments.sh
 
+# Plot Learning Curves
+@plot:
+  echo ""
+  echo "Creating plots..."
+  python -m metassl.analysis.plot.plot_learning_curves
+  echo ""
+  echo "Done!"
+
 # ---------------------------------------------------------------------------------------
 # SIMSIAM TESTS
 # ---------------------------------------------------------------------------------------
