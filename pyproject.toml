@@ -2,7 +2,7 @@
 name = "metassl"
 version = "0.1.0"
 description = ""
-authors = ["diane-wagner <wagnerd@informatik.uni-freiburg.de>"]
+authors = ["Diane Wagner <wagnerd@informatik.uni-freiburg.de>, Fábio Ferreira <ferreira@cs.uni-freiburg.de>, Samuel Müller <muellesa@informatik.uni-freiburg.de>, Danny Stoll <stolld@cs.uni-freiburg.de>, Robin Tibor Schirrmeister <robin.schirrmeister@uniklinik-freiburg.de>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
