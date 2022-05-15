@@ -144,7 +144,7 @@ def get_neps_pipeline_space(config):
                     lower=1, upper=15, log=False, default=3, default_confidence="medium"
                 ),
                 magnitude=neps.IntegerParameter(
-                    lower=0, upper=30, log=False, default=15, default_confidence="medium"
+                    lower=0, upper=30, log=False, default=4, default_confidence="medium"
                 ),
             )
         else:
