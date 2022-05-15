@@ -154,6 +154,55 @@ def get_neps_pipeline_space(config):
             )
         return pipeline_space
     # ----------------------------------------------------------------------------------------------
+    elif config_space == "smart_augment":
+        if user_prior:
+            pipeline_space = dict(
+                num_col_ops=neps.IntegerParameter(
+                    lower=1, upper=9, log=False, default=2, default_confidence="medium"
+                ),
+                num_geo_ops=neps.IntegerParameter(
+                    lower=1, upper=5, log=False, default=1, default_confidence="medium"
+                ),
+                col_magnitude=neps.IntegerParameter(
+                    lower=0, upper=30, log=False, default=4, default_confidence="medium"
+                ),
+                geo_magnitude=neps.IntegerParameter(
+                    lower=0, upper=30, log=False, default=4, default_confidence="medium"
+                ),
+                apply_ops_prob=neps.FloatParameter(
+                    lower=0, upper=1, log=False, default=1, default_confidence="medium"
+                ),
+            )
+        else:
+            pipeline_space = dict(
+                num_col_ops=neps.IntegerParameter(
+                    lower=1,
+                    upper=9,
+                    log=False,
+                ),
+                num_geo_ops=neps.IntegerParameter(
+                    lower=1,
+                    upper=5,
+                    log=False,
+                ),
+                col_magnitude=neps.IntegerParameter(
+                    lower=0,
+                    upper=30,
+                    log=False,
+                ),
+                geo_magnitude=neps.IntegerParameter(
+                    lower=0,
+                    upper=30,
+                    log=False,
+                ),
+                apply_ops_prob=neps.FloatParameter(
+                    lower=0,
+                    upper=1,
+                    log=False,
+                ),
+            )
+        return pipeline_space
+    # ----------------------------------------------------------------------------------------------
     elif config_space == "hierarchical_nas":
         if config.neps.optimize_backbone_only:
             if user_prior:

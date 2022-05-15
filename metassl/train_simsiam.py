@@ -659,6 +659,7 @@ def train_one_epoch(
             config.expt.data_augmentation_mode == "trivial_augment"
             or config.expt.data_augmentation_mode == "smartsampling_augment"
             or config.expt.data_augmentation_mode == "rand_augment"
+            or config.expt.data_augmentation_mode == "smart_augment"
         ):
             # To prevent the following error:
             # RuntimeError: Input type (torch.cuda.DoubleTensor) and weight type

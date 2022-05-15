@@ -2,7 +2,7 @@ import numpy as np
 import torchvision
 from PIL import Image
 
-from metassl.utils.rand_augment import RandAugment, TrivialAugment
+from metassl.utils.rand_augment import RandAugment, SmartAugment, TrivialAugment
 
 
 class Cifar10AlbumentationsPT(torchvision.datasets.CIFAR10):
@@ -34,8 +34,14 @@ class Cifar10AugmentationPT(torchvision.datasets.CIFAR10):
         super().__init__(root=root, train=train, download=download, transform=transform)
         self.data_augmentation_mode = data_augmentation_mode
         self.neps_hyperparameters = neps_hyperparameters
-        self.rand_augment = RandAugment(neps_hyperparameters=neps_hyperparameters)
-        self.trivial_augment = TrivialAugment()
+        if data_augmentation_mode == "rand_augment":
+            self.rand_augment = RandAugment(neps_hyperparameters=neps_hyperparameters)
+        elif data_augmentation_mode == "smart_augment":
+            self.smart_augment = SmartAugment(neps_hyperparameters=neps_hyperparameters)
+        elif data_augmentation_mode == "trivial_augment":
+            self.trivial_augment = TrivialAugment()
+        else:
+            raise NotImplementedError
 
     def __getitem__(self, index):
         image, label = self.data[index], self.targets[index]
@@ -50,9 +56,9 @@ class Cifar10AugmentationPT(torchvision.datasets.CIFAR10):
         elif self.data_augmentation_mode == "trivial_augment":
             image_a = self.trivial_augment(image)
             image_b = self.trivial_augment(image)
-        # elif self.augmentation_mode == "smartsamplingaugment":
-        #     image_a = self.smartsamplingaugment(image)
-        #     image_b = self.smartsamplingaugment(image)
+        elif self.data_augmentation_mode == "smart_augment":
+            image_a = self.smart_augment(image)
+            image_b = self.smart_augment(image)
         else:
             raise NotImplementedError
 

@@ -225,6 +225,37 @@ def augment_list():  # default opterations used in RandAugment paper
     return augment_list
 
 
+def col_augment_list():
+    color_augment_list = [
+        (AutoContrast, 0, 1),
+        (Equalize, 0, 1),
+        (Invert, 0, 1),
+        (Posterize, 0, 4),
+        (Solarize, 0, 256),
+        (Color, 0.1, 1.9),
+        (Contrast, 0.1, 1.9),
+        (Brightness, 0.1, 1.9),
+        (Sharpness, 0.1, 1.9),
+    ]
+
+    return color_augment_list
+
+
+def geo_augment_list():
+    geometric_augment_list = [
+        (Rotate, 0, 30),
+        (ShearX, 0.0, 0.3),
+        (ShearY, 0.0, 0.3),
+        (TranslateX, 0.0, 0.33),
+        (TranslateY, 0.0, 0.33),
+    ]
+
+    return geometric_augment_list
+
+
+####################################################################################################
+
+
 class RandAugment:
     def __init__(self, neps_hyperparameters=None, is_segmentation=False):
         self.num_ops = neps_hyperparameters["num_ops"] if neps_hyperparameters is not None else 3
@@ -236,8 +267,12 @@ class RandAugment:
 
     def __call__(self, data):
         basic_op = [(RandomResizeCrop, 0.2, 1.0)]  # Important for SimSiam
+        basic_op_magnitude = random.randint(0, 30)
+        for op, minval, maxval in basic_op:
+            magnitude_val = (float(basic_op_magnitude) / 30) * float(maxval - minval) + minval
+            data = op(data, magnitude_val, self.is_segmentation)
+
         ops = random.choices(self.augment_list, k=self.num_ops)
-        ops = basic_op + ops
         for op, minval, maxval in ops:
             magnitude_val = (float(self.magnitude) / 30) * float(maxval - minval) + minval
             data = op(data, magnitude_val, self.is_segmentation)
@@ -257,4 +292,39 @@ class TrivialAugment:
         for op, minval, maxval in ops:
             magnitude_val = (float(magnitude) / 30) * float(maxval - minval) + minval
             data = op(data, magnitude_val, self.is_segmentation)
+        return data
+
+
+class SmartAugment:
+    def __init__(self, neps_hyperparameters=None, is_segmentation=False):
+        self.num_col_ops = neps_hyperparameters["num_col_ops"]
+        self.num_geo_ops = neps_hyperparameters["num_geo_ops"]
+        self.apply_ops_prob = neps_hyperparameters["apply_ops_prob"]
+        self.col_magnitude = neps_hyperparameters["col_magnitude"]
+        self.geo_magnitude = neps_hyperparameters["geo_magnitude"]
+        self.col_augment_list = col_augment_list()
+        self.geo_augment_list = geo_augment_list()
+        self.is_segmentation = is_segmentation
+
+    def __call__(self, data):
+        basic_op = [(RandomResizeCrop, 0.2, 1.0)]  # Important for SimSiam
+        basic_op_magnitude = random.randint(0, 30)
+        for op, minval, maxval in basic_op:
+            magnitude_val = (float(basic_op_magnitude) / 30) * float(maxval - minval) + minval
+            data = op(data, magnitude_val, self.is_segmentation)
+
+        random_value = random.uniform(0, 1)
+        if random_value > self.apply_ops_prob:
+            return data
+
+        sampled_col_ops = random.sample(self.col_augment_list, k=self.num_col_ops)
+        for op, minval, maxval in sampled_col_ops:
+            magnitude_val = (float(self.col_magnitude) / 30) * float(maxval - minval) + minval
+            data = op(data, magnitude_val, self.is_segmentation)
+
+        sampled_geo_ops = random.sample(self.geo_augment_list, k=self.num_geo_ops)
+        for op, minval, maxval in sampled_geo_ops:
+            magnitude_val = (float(self.geo_magnitude) / 30) * float(maxval - minval) + minval
+            data = op(data, magnitude_val, self.is_segmentation)
+
         return data
