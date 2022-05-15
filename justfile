@@ -19,7 +19,7 @@ delete_test_runs:
   echo ""
   echo ""
   echo "------- TESTING CIFAR10 PRETRAINING -------"
-  python -m metassl.train_simsiam --config "metassl/default_metassl_config_cifar10.yaml" --use_fixed_args --expt.is_testing_mode --data.dataset_percentage_usage 25 --train.epochs 5 --expt.warmup_epochs 0 --expt.seed 0 --expt.save_model_frequency 50 --expt.is_non_grad_based --expt.multiprocessing_distributed --expt.expt_name testing_cifar10_pretraining_1
+  python -m metassl.train_simsiam --config "metassl/default_metassl_config_cifar10.yaml" --train.batch_size 32 --use_fixed_args --expt.is_testing_mode --data.dataset_percentage_usage 25 --train.epochs 5 --expt.warmup_epochs 0 --expt.seed 0 --expt.save_model_frequency 50 --expt.is_non_grad_based --expt.multiprocessing_distributed --expt.expt_name testing_cifar10_pretraining_1
   echo ""
   echo ""
   echo "------- TESTING CIFAR10 FINETUNING -------"
@@ -71,13 +71,40 @@ delete_test_runs:
   echo "------- TESTING CIFAR100 ALTERNATING -------"
   python -m metassl.train_alternating_simsiam --config "metassl/default_metassl_config_cifar10.yaml" --data.dataset "CIFAR100" --use_fixed_args --expt.is_testing_mode --data.dataset_percentage_usage 25 --train.epochs 2 --finetuning.epochs 2 --expt.multiprocessing_distributed --expt.expt_name testing_cifar100_alternating_1
 
-# Run SimSiam local Tests on CIFAR10
+# Run SimSiam local NEPS test on CIFAR10
 @run_local_neps_test:
   echo ""
   echo ""
   echo "------- TESTING CIFAR10 NEPS -------"
   python -m metassl.train_simsiam --config "metassl/default_metassl_config_cifar10.yaml" --use_fixed_args --expt.is_testing_mode --data.dataset_percentage_usage 25 --train.batch_size 64 --finetuning.batch_size 64 --train.epochs 5 --finetuning.epochs 5 --finetuning.valid_size 0.2 --expt.warmup_epochs 0 --expt.seed 0 --expt.save_model_frequency 50 --expt.is_non_grad_based --expt.multiprocessing_distributed --neps.is_neps_run --neps.config_space combined --neps.is_user_prior --neps.optimize_backbone_only --expt.expt_name testing_cifar10_neps_1
 
+# Run SimSiam local ProbabilityAugment test on CIFAR10
+@run_local_probabilityaugment_test:
+  echo ""
+  echo ""
+  echo "------- TESTING CIFAR10 ProbabilityAugment -------"
+  python -m metassl.train_simsiam --config "metassl/default_metassl_config_cifar10.yaml" --use_fixed_args --expt.is_testing_mode --data.dataset_percentage_usage 25 --train.batch_size 64 --finetuning.batch_size 64 --train.epochs 5 --finetuning.epochs 5 --finetuning.valid_size 0.2 --expt.warmup_epochs 0 --expt.seed 0 --expt.save_model_frequency 50 --expt.is_non_grad_based --expt.multiprocessing_distributed --expt.data_augmentation_mode "probability_augment" --neps.is_neps_run --neps.config_space probability_augment --neps.is_user_prior --expt.expt_name testing_cifar10_probabilityaugment_neps_1
+
+# Run SimSiam local RandAugment test on CIFAR10
+@run_local_randaugment_test:
+  echo ""
+  echo ""
+  echo "------- TESTING CIFAR10 RandAugment -------"
+  python -m metassl.train_simsiam --config "metassl/default_metassl_config_cifar10.yaml" --use_fixed_args --expt.is_testing_mode --data.dataset_percentage_usage 25 --train.batch_size 64 --finetuning.batch_size 64 --train.epochs 5 --finetuning.epochs 5 --finetuning.valid_size 0.2 --expt.warmup_epochs 0 --expt.seed 0 --expt.save_model_frequency 50 --expt.is_non_grad_based --expt.multiprocessing_distributed --expt.data_augmentation_mode "rand_augment" --neps.is_neps_run --neps.config_space rand_augment --neps.is_user_prior --expt.expt_name testing_cifar10_randaugment_neps_1
+
+# Run SimSiam local SmartAugment test on CIFAR10
+@run_local_smartaugment_test:
+  echo ""
+  echo ""
+  echo "------- TESTING CIFAR10 SmartAugment -------"
+  python -m metassl.train_simsiam --config "metassl/default_metassl_config_cifar10.yaml" --use_fixed_args --expt.is_testing_mode --data.dataset_percentage_usage 25 --train.batch_size 64 --finetuning.batch_size 64 --train.epochs 5 --finetuning.epochs 5 --finetuning.valid_size 0.2 --expt.warmup_epochs 0 --expt.seed 0 --expt.save_model_frequency 50 --expt.is_non_grad_based --expt.multiprocessing_distributed --expt.data_augmentation_mode "smart_augment" --neps.is_neps_run --neps.config_space smart_augment --neps.is_user_prior --expt.expt_name testing_cifar10_smartaugment_neps_1
+
+# Run SimSiam local TrivialAugment test on CIFAR10
+@run_local_trivialaugment_test:
+  echo ""
+  echo ""
+  echo "------- TESTING CIFAR10 TrivialAugment -------"
+  python -m metassl.train_simsiam --config "metassl/default_metassl_config_cifar10.yaml" --use_fixed_args --expt.is_testing_mode --data.dataset_percentage_usage 25 --train.batch_size 64 --finetuning.batch_size 64 --train.epochs 5 --finetuning.epochs 5 --finetuning.valid_size 0.0 --expt.warmup_epochs 0 --expt.seed 0 --expt.save_model_frequency 50 --expt.is_non_grad_based --expt.multiprocessing_distributed --expt.data_augmentation_mode "trivial_augment" --expt.expt_name testing_cifar10_trivialaugment_1
 # ---------------------------------------------------------------------------------------
 # SIMSIAM ON CIFAR10
 # ---------------------------------------------------------------------------------------
